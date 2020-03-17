@@ -5,9 +5,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-void error(char *fmt, ...) {
+char *user_input;
+
+void error_at(char *loc, char *fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
+	int pos = loc - user_input;
+	fprintf(stderr, "%s\n", user_input);
+	fprintf(stderr, "%*s", pos, " ");
+	fprintf(stderr, "^ ");
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	exit(1);
@@ -38,12 +44,12 @@ bool consume(char op) {
 }
 
 void expect(char op) {
-	if (token->kind != TK_RESERVED || token->str[0] != op) error("not '%c'(expect)", op);
+	if (token->kind != TK_RESERVED || token->str[0] != op) error_at(token->str, "not '%c'(expect)", op);
 	token = token->next;
 }
 
 int expect_num() {
-	if (token->kind != TK_NUM) error("not number");
+	if (token->kind != TK_NUM) error_at(token->str, "not number");
 	int res = token->val;
 	token = token->next;
 	return res;
@@ -79,7 +85,7 @@ Token *tokenize(char *p) {
 			cur->val = strtol(p, &p, 10);
 			continue;
 		}
-		error("can't tokenize\n");
+		fprintf(stderr, "can't tokenize\n");
 	}
 	new_token(TK_EOF, cur, p);
 	return head.next;
@@ -95,6 +101,7 @@ int main(int argc, char **argv) {
   }
 
   char *p = argv[1];
+  user_input = argv[1];
   token = tokenize(p);
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
