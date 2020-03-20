@@ -1,3 +1,14 @@
+/**
+ * @file util.c
+ * @author Takamasa Naruse
+ * @brief 汎用的な関数(エラー文の出力など)の実装
+ * @version 0.1
+ * @date 2020-03-21
+ * 
+ * @copyright Copyright (c) 2020
+ * 
+ */
+
 #include "SverigeCC.h"
 #include <stdio.h>
 #include <stdlib.h>

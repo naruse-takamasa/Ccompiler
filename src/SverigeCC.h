@@ -1,9 +1,12 @@
 #include <stdbool.h>
 
+////////////////////////main.c//////////////////////
 extern char *user_input;
 
+////////////////////////util.c//////////////////////
 void error_at(char *loc, char *fmt, ...);
 
+////////////////////////tokenize.c//////////////////////
 extern char reserved[12][20];
 extern int reserved_len[];
 extern const int reserved_size;
@@ -35,6 +38,7 @@ bool consume(char *op);
 void expect(char *op);
 int expect_num();
 
+////////////////////////parse.c//////////////////////
 typedef enum {
 	ND_ADD,
 	ND_SUB,
@@ -66,4 +70,5 @@ struct Node {
 
 Node *expr();
 
+////////////////////////codegen.c//////////////////////
 void gen(Node *node);

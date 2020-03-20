@@ -1,11 +1,16 @@
+/**
+ * @file codegen.c
+ * @author Takamasa Naruse
+ * @brief 抽象構文木からアセンブリを出力
+ * @version 0.1
+ * @date 2020-03-21
+ * 
+ * @copyright Copyright (c) 2020
+ * 
+ */
 #include "SverigeCC.h"
 #include <stdio.h>
 
-/**
- * @brief 抽象構文木からアセンブリを生成
- * 
- * @param node 
- */
 void gen(Node *node) {
 	if (node->kind == ND_NUM) {
 		printf("  push %d\n", node->val);

@@ -1,3 +1,13 @@
+/**
+ * @file tokenize.c
+ * @author Takamasa Naruse
+ * @brief トークナイズ用
+ * @version 0.1
+ * @date 2020-03-21
+ * 
+ * @copyright Copyright (c) 2020
+ * 
+ */
 #include "SverigeCC.h"
 #include <stdio.h>
 #include <stdbool.h>

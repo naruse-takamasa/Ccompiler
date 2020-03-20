@@ -1,3 +1,13 @@
+/**
+ * @file main.c
+ * @author Takamasa Naruse
+ * @brief main関数実行用
+ * @version 0.1
+ * @date 2020-03-21
+ * 
+ * @copyright Copyright (c) 2020
+ * 
+ */
 #include "SverigeCC.h"
 #include <stdio.h>
 
@@ -5,10 +15,10 @@ char *user_input;
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, "引数の個数が正しくありません\n");
+    fprintf(stderr, "argc is not equal 2\n");
     return 1;
   } else {
-	  fprintf(stderr, "%s\n", argv[0]);
+	  fprintf(stderr, "compiler name : %s\n", argv[0]);
 	  fprintf(stderr, "input code : %s\n", argv[1]);
   }
 

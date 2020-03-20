@@ -1,3 +1,13 @@
+/**
+ * @file parse.c
+ * @author Takamasa Naruse
+ * @brief 抽象構文木の構築
+ * @version 0.1
+ * @date 2020-03-21
+ * 
+ * @copyright Copyright (c) 2020
+ * 
+ */
 #include "SverigeCC.h"
 #include <stdlib.h>
 
