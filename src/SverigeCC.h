@@ -17,6 +17,7 @@ extern const int reserved_size;
  * 
  */
 typedef enum {
+	TK_RETURN,
 	TK_IDENT,
 	TK_NUM,
 	TK_RESERVED,
@@ -69,6 +70,7 @@ typedef enum {
 	ND_NUM,
 	ND_ASSIGN,
 	ND_LVAR,
+	ND_RETURN,
 } NodeKind;
 
 typedef struct Node Node;

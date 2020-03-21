@@ -34,7 +34,7 @@ Token *consume_ident() {
 
 void expect(char *op) {
 	if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) 
-		error_at(token->str, "not '%s'(expect)", op);
+		error_at(token->str, "not '%s' -> '%s'(expect)", op, token->str);
 	token = token->next;
 }
 
@@ -43,6 +43,10 @@ int expect_num() {
 	int res = token->val;
 	token = token->next;
 	return res;
+}
+
+bool is_alnum(char c) {
+	return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || (c == '_');
 }
 
 bool at_eof() {
@@ -94,13 +98,23 @@ Token *tokenize(char *p) {
 			cur->val = strtol(p, &p, 10);
 			continue;
 		}
-		if ('a' <= *p && *p <= 'z') {
-			cur = new_token(TK_IDENT, cur, p);
-			cur->len = 1;
-			p += 1;
+		if (memcmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+			cur = new_token(TK_RETURN, cur, p);
+			cur->len = 6;
+			p += 6;
 			continue;
 		}
-		fprintf(stderr, "can't tokenize\n");
+		if (is_alnum(*p)) {
+			cur = new_token(TK_IDENT, cur, p);
+			int idx = 0;
+			while (is_alnum(p[idx])) {
+				idx++;
+			}
+			cur->len = idx;
+			p += idx;
+			continue;
+		}
+		error_at(token->str, "can't tokenize\n");
 	}
 	new_token(TK_EOF, cur, p);
 	return head.next;
