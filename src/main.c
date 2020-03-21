@@ -27,12 +27,19 @@ int main(int argc, char **argv) {
   for (Token *now = token; now->kind != TK_EOF; now = now->next) {
 	  fprintf(stderr, "%s, %d, %d\n", now->str, now->len, now->val);
   }
-  Node *node = expr();
+  program();
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
   printf("main:\n");
-  gen(node);
-  printf("  pop rax\n");
+  printf("  push rbp\n");
+  printf("  mov rbp, rsp\n");
+  printf("  sub rsp, 208\n");
+  for (int i = 0; code[i]; i++) {
+	  gen(code[i]);
+	  printf("  pop rax\n");
+  }
+  printf("  mov rsp, rbp\n");
+  printf("  pop rbp\n");
   printf("  ret\n");
   return 0;
 }

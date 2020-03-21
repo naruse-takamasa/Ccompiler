@@ -10,6 +10,9 @@
  */
 #include "SverigeCC.h"
 #include <stdlib.h>
+#include <stdio.h>
+
+Node *code[100];
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
 	Node *node = calloc(1, sizeof(Node));
@@ -34,10 +37,17 @@ Node *primary() {
 		Node *node = expr();
 		expect(")");
 		return node;
-	} else {
-		// fprintf(stderr, "number\n");
-		return new_node_num(expect_num());
 	}
+	Token *tok = consume_ident();
+	if (tok) {
+		Node *node = calloc(1, sizeof(Node));
+		node->kind = ND_LVAR;
+		node->offset = (tok->str[0] - 'a' + 1) * 8;
+		token = token->next;
+		return node;
+	}
+	// fprintf(stderr, "number\n");
+	return new_node_num(expect_num());
 }
 
 Node *unary() {
@@ -99,7 +109,31 @@ Node *equality() {
 	}
 }
 
-Node *expr() {
+Node *assign() {
 	Node *node = equality();
+	if (consume("=")) {
+		node = new_node(ND_ASSIGN, node, assign());
+	}
 	return node;
+}
+
+Node *expr() {
+	Node *node = assign();
+	return node;
+}
+
+Node *stmt() {
+	Node *node = expr();
+	fprintf(stderr, "%s\n", token->str);
+	expect(";");
+	return node;
+}
+
+void program() {
+	int idx = 0;
+	while (!at_eof()) {
+		code[idx] = stmt();
+		idx++;
+	}
+	code[idx] = NULL;
 }

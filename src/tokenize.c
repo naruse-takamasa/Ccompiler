@@ -15,9 +15,9 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-char reserved[12][20] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<"};
-int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1};
-const int reserved_size = 12;
+char reserved[][20] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";"};
+int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1};
+const int reserved_size = 14;
 
 bool consume(char *op) {
 	if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) 
@@ -26,9 +26,14 @@ bool consume(char *op) {
 	return true;
 }
 
+Token *consume_ident() {
+	if (token->kind != TK_IDENT) return NULL;
+	return token;
+}
+
 void expect(char *op) {
 	if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) 
-		error_at(token->str, "not '%c'(expect)", op);
+		error_at(token->str, "not '%s'(expect)", op);
 	token = token->next;
 }
 
@@ -88,6 +93,12 @@ Token *tokenize(char *p) {
 			cur = new_token(TK_NUM, cur, p);
 			cur->val = strtol(p, &p, 10);
 			//fprintf(stderr, "%s\n", p);
+			continue;
+		}
+		if ('a' <= *p && *p <= 'z') {
+			cur = new_token(TK_IDENT, cur, p);
+			cur->len = 1;
+			p += 1;
 			continue;
 		}
 		fprintf(stderr, "can't tokenize\n");
