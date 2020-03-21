@@ -30,6 +30,24 @@ Node *new_node_num(int val) {
 	return node;
 }
 
+Node *new_node_lvar(Token *tok) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_LVAR;
+	LVar *lvar = find_lvar(tok);
+	if (lvar) {
+		node->offset = lvar->offset;
+	} else {
+		lvar = calloc(1, sizeof(LVar));
+		lvar->name = tok->str;
+		lvar->len = tok->len;
+		lvar->offset = locals->offset + 8;
+		lvar->next = locals;
+		locals = lvar;
+		node->offset = lvar->offset;
+	}
+	return node;
+}
+
 Node *expr();
 
 Node *primary() {
@@ -38,23 +56,9 @@ Node *primary() {
 		expect(")");
 		return node;
 	}
-	Token *tok = consume_ident();
-	if (tok) {
-		Node *node = calloc(1, sizeof(Node));
-		node->kind = ND_LVAR;
-		LVar *lvar = find_lvar(tok);
-		if (lvar) {
-			node->offset = lvar->offset;
-		} else {
-			lvar = calloc(1, sizeof(LVar));
-			lvar->name = tok->str;
-			lvar->len = tok->len;
-			lvar->next = locals;
-			lvar->offset = (locals->offset) + 8;
-			node->offset = lvar->offset;
-			locals = lvar;
-		}
-		token = token->next;
+	if (token->kind == TK_IDENT) {
+		Node *node = new_node_lvar(token);
+		expect_ident();
 		return node;
 	}
 	return new_node_num(expect_num());
@@ -137,10 +141,6 @@ Node *stmt() {
 	}
 	expect(";");
 	return node;
-	// Node *node = expr();
-	// expect(";");
-	// fprintf(stderr, "%s\n", token->str);
-	// return node;
 }
 
 void program() {

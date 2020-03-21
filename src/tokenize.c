@@ -27,8 +27,9 @@ bool consume(char *op) {
 	return true;
 }
 
-Token *consume_ident() {
-	if (token->kind != TK_IDENT) return NULL;
+bool consume_ident() {
+	if (token->kind != TK_IDENT) return false;
+	token = token->next;
 	return token;
 }
 
@@ -39,10 +40,15 @@ void expect(char *op) {
 }
 
 int expect_num() {
-	if (token->kind != TK_NUM) error_at(token->str, "not number");
+	if (token->kind != TK_NUM) error_at(token->str, "not number\n");
 	int res = token->val;
 	token = token->next;
 	return res;
+}
+
+void expect_ident() {
+	if (token->kind == TK_IDENT) token = token->next;
+	else error_at(token->str, "not ident\n");
 }
 
 bool is_alnum(char c) {

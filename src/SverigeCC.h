@@ -50,9 +50,10 @@ LVar *find_lvar(Token *tok);
 
 Token *tokenize(char *p);
 bool consume(char *op);
-Token *consume_ident();
+bool consume_ident();
 void expect(char *op);
 int expect_num();
+void expect_ident();
 bool at_eof();
 
 ////////////////////////parse.c//////////////////////
