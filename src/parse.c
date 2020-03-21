@@ -11,6 +11,7 @@
 #include "SverigeCC.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 Node *code[100];
 
@@ -23,7 +24,6 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
 }
 
 Node *new_node_num(int val) {
-	//fprintf(stderr, "new node num : %d\n", val);
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_NUM;
 	node->val = val;
@@ -42,25 +42,32 @@ Node *primary() {
 	if (tok) {
 		Node *node = calloc(1, sizeof(Node));
 		node->kind = ND_LVAR;
-		node->offset = (tok->str[0] - 'a' + 1) * 8;
+		LVar *lvar = find_lvar(tok);
+		if (lvar) {
+			node->offset = lvar->offset;
+		} else {
+			lvar = calloc(1, sizeof(LVar));
+			lvar->name = tok->str;
+			lvar->len = tok->len;
+			lvar->next = locals;
+			lvar->offset = (locals->offset) + 8;
+			node->offset = lvar->offset;
+			locals = lvar;
+		}
 		token = token->next;
 		return node;
 	}
-	// fprintf(stderr, "number\n");
 	return new_node_num(expect_num());
 }
 
 Node *unary() {
 	if (consume("+")) {
-		// fprintf(stderr, "consume+\n");
 		Node *node = primary();
 		return node;
 	} else if (consume("-")) {
-		// fprintf(stderr, "consume-\n");
 		Node *node = new_node(ND_SUB, new_node_num(0), primary());
 		return node;
 	} else {
-		// fprintf(stderr, "primary\n");
 		return primary();
 	}
 }
@@ -71,7 +78,6 @@ Node *mul() {
 		if (consume("*")) node = new_node(ND_MUL, node, unary());
 		else if (consume("/")) node = new_node(ND_DIV, node, unary());
 		else {
-			// fprintf(stderr, "not * /\n");
 			return node;
 		}
 	}
@@ -81,7 +87,6 @@ Node *add() {
 	Node *node = mul();
 	for (;;) {
 		if (consume("+")) {
-			// fprintf(stderr, "consume +\n");
 			node = new_node(ND_ADD, node, mul());
 		}
 		else if (consume("-")) node = new_node(ND_SUB, node, mul());
@@ -124,8 +129,8 @@ Node *expr() {
 
 Node *stmt() {
 	Node *node = expr();
-	fprintf(stderr, "%s\n", token->str);
 	expect(";");
+	fprintf(stderr, "%s\n", token->str);
 	return node;
 }
 

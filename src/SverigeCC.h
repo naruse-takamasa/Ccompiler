@@ -33,7 +33,19 @@ struct Token {
 	int len;
 };
 
-Token *token;
+extern Token *token;
+
+typedef struct LVar LVar;
+
+struct LVar {
+	LVar *next;
+	char *name;
+	int len;
+	int offset;
+};
+
+extern LVar *locals;
+LVar *find_lvar(Token *tok);
 
 Token *tokenize(char *p);
 bool consume(char *op);
@@ -60,7 +72,7 @@ typedef enum {
 } NodeKind;
 
 typedef struct Node Node;
-Node *code[100];
+extern Node *code[100];
 
 /**
  * @brief 抽象構文木の頂点の定義

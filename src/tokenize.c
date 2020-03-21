@@ -18,6 +18,7 @@
 char reserved[][20] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";"};
 int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1};
 const int reserved_size = 14;
+Token *token;
 
 bool consume(char *op) {
 	if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) 
@@ -71,7 +72,6 @@ bool is_reserved(char *p) {
 	for (int i = 0; i < reserved_size; i++) {
 		if (memcmp(p, reserved[i], reserved_len[i]) == 0) return true;
 	}
-	// fprintf(stderr, "not reserved\n");
 	return false;
 }
 
@@ -92,7 +92,6 @@ Token *tokenize(char *p) {
 		if (isdigit(*p)) {
 			cur = new_token(TK_NUM, cur, p);
 			cur->val = strtol(p, &p, 10);
-			//fprintf(stderr, "%s\n", p);
 			continue;
 		}
 		if ('a' <= *p && *p <= 'z') {
@@ -104,6 +103,14 @@ Token *tokenize(char *p) {
 		fprintf(stderr, "can't tokenize\n");
 	}
 	new_token(TK_EOF, cur, p);
-	//fprintf(stderr, "%s\n", head.next->str);
 	return head.next;
+}
+
+LVar *find_lvar(Token *tok) {
+	for (LVar *now = locals; now; now = now->next) {
+		if (tok->len == now->len && memcmp(tok->str, now->name, tok->len) == 0) {
+			return now;
+		}
+	}
+	return NULL;
 }
