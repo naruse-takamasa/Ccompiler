@@ -15,11 +15,11 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-char reserved[][20] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";"};
-int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1};
-const int reserved_size = 14;
+char reserved[][10] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";", "{", "}"};
+int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1};
+const int reserved_size = 16;
 
-char control_flow[][20] = {"return", "if", "else", "while", "for"};
+char control_flow[][10] = {"return", "if", "else", "while", "for"};
 int control_flow_len[] = {6, 2, 4, 5, 3};
 const int control_flow_size = 5;
 
@@ -114,7 +114,7 @@ Token *tokenize(char *p) {
 	head.next = NULL;
 	Token *cur = &head;
 	while (*p) {
-		fprintf(stderr, "now tokenize : %s \n", p);
+		// fprintf(stderr, "now tokenize : %s \n", p);
 		// 空白
 		if (isspace(*p)) {
 			p++;

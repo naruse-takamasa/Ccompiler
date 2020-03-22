@@ -17,7 +17,7 @@ void gen_lval(Node *node) {
 	printf("  sub rax, %d\n", node->offset);
 	printf("  push rax\n");
 }
-// TODO:
+
 int Label_id = 0;
 
 void gen(Node *node) {
@@ -90,6 +90,15 @@ void gen(Node *node) {
 		printf("  jmp .Lbegin%d\n", Label_id);
 		printf(".Lend%d:\n", Label_id);
 		Label_id++;
+		return;
+	case ND_BLOCK:
+		for (Node *now = node->next; now ; now = now->next) {
+			gen(now);
+			printf("  pop rax\n");
+		}
+		// main関数で"  pop rax"が必ず実行されるので、for文で全部"  pop rax"するとマズい.
+		// だから、"  push rax"して直近に取り出されたやつだけまたpushしてある.
+		printf("  push rax\n");
 		return;
 	default:
 		break;

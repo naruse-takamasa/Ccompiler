@@ -8,7 +8,7 @@ void error_at(char *loc, char *fmt, ...);
 void error(char *fmt, ...);
 
 ////////////////////////tokenize.c//////////////////////
-extern char reserved[][20];
+extern char reserved[][10];
 extern int reserved_len[];
 extern const int reserved_size;
 
@@ -77,6 +77,7 @@ typedef enum {
 	// ND_ELSE,
 	ND_WHILE,
 	ND_FOR,
+	ND_BLOCK,
 } NodeKind;
 
 typedef struct Node Node;
@@ -108,6 +109,9 @@ struct Node {
 	// for 以下の変数とconditionとthen_stmtを使う
 	Node *init;
 	Node *loop;
+
+	// block
+	Node *next;
 };
 
 void program();

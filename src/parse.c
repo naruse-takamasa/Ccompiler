@@ -198,12 +198,29 @@ Node *stmt() {
 		default:
 			break;
 		}
-	} else if (consume(";")) {
-		node = NULL;
-	} else {
-		node = expr();
-		expect(";");
+		return node;
 	}
+	if (consume(";")) {
+		// 何も式が書かれなかった場合
+		node = NULL;
+		return node;
+	}
+	if (consume("{")) {
+		// ブロック
+		node = new_node(ND_BLOCK, NULL, NULL);
+		Node *now = node;
+		while (!consume("}")) {
+			Node *statement = stmt();
+			now->next = statement;
+			//node->tail = statement;
+			now = statement;
+		}
+		now->next = NULL;
+		return node;
+	}
+	// ただの式
+	node = expr();
+	expect(";");
 	return node;
 }
 

@@ -15,10 +15,11 @@ try() {
     exit 1
   fi
 }
-
+try 11 "a = 3; if (a == 3) {return 11;}"
 try 15 "a = 3; while (a < 1) a = a - 1; if (a == 3) return 10; else return 15;"
 try 10 "for (i = 0; i < 2; i = i + 1) ; return 10;"
-
+try 3 '{1; {2;} return 3;}'
+try 55 'i=0; j=0; while(i<=10) {j=i+j; i=i+1;} return j;'
 try 3 "a = 2; b = 1; a + b;"
 try 3 "1 + 2;"
 try 44 "44;"
