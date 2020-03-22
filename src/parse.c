@@ -194,9 +194,12 @@ Node *stmt() {
 				expect(")");
 			}
 			node->then_stmt = stmt();
+			break;
 		default:
 			break;
 		}
+	} else if (consume(";")) {
+		node = NULL;
 	} else {
 		node = expr();
 		expect(";");

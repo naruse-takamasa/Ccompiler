@@ -53,14 +53,14 @@ void gen(Node *node) {
 		printf("  cmp rax, 0\n");
 		if (node->else_stmt == NULL) {
 			printf("  je .Lend%d\n", Label_id);
-			gen(node->then_stmt);
+			if (node->then_stmt != NULL) gen(node->then_stmt);
 			printf(".Lend%d:\n", Label_id);
 		} else {
 			printf("  je .Lelse%d\n", Label_id);
-			gen(node->then_stmt);
+			if (node->then_stmt != NULL) gen(node->then_stmt);
 			printf("  jmp .Lend%d\n", Label_id);
 			printf(".Lelse%d:\n", Label_id);
-			gen(node->else_stmt);
+			if (node->else_stmt != NULL) gen(node->else_stmt);
 			printf(".Lend%d:\n", Label_id);
 		}
 		Label_id++;
@@ -71,7 +71,7 @@ void gen(Node *node) {
 		printf("  pop rax\n");
 		printf("  cmp rax, 0\n");
 		printf("  je .Lend%d\n", Label_id);
-		gen(node->rhs);
+		if (node->rhs != NULL) gen(node->rhs);
 		printf("  jmp .Lbegin%d\n", Label_id);
 		printf(".Lend%d:\n", Label_id);
 		Label_id++;
@@ -85,7 +85,7 @@ void gen(Node *node) {
 			printf("  cmp rax, 0\n");
 			printf("  je .Lend%d\n", Label_id);
 		}
-		gen(node->then_stmt);
+		if (node->then_stmt != NULL) gen(node->then_stmt);
 		if (node->loop != NULL) gen(node->loop);
 		printf("  jmp .Lbegin%d\n", Label_id);
 		printf(".Lend%d:\n", Label_id);
