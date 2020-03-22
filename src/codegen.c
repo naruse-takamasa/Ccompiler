@@ -17,6 +17,8 @@ void gen_lval(Node *node) {
 	printf("  sub rax, %d\n", node->offset);
 	printf("  push rax\n");
 }
+// TODO:
+int Label_id = 0;
 
 void gen(Node *node) {
 	switch (node->kind)
@@ -44,6 +46,50 @@ void gen(Node *node) {
 		printf("  mov rsp, rbp\n");
 		printf("  pop rbp\n");
 		printf("  ret\n");
+		return;
+	case ND_IF:
+		gen(node->condition);
+		printf("  pop rax\n");
+		printf("  cmp rax, 0\n");
+		if (node->else_stmt == NULL) {
+			printf("  je .Lend%d\n", Label_id);
+			gen(node->then_stmt);
+			printf(".Lend%d:\n", Label_id);
+		} else {
+			printf("  je .Lelse%d\n", Label_id);
+			gen(node->then_stmt);
+			printf("  jmp .Lend%d\n", Label_id);
+			printf(".Lelse%d:\n", Label_id);
+			gen(node->else_stmt);
+			printf(".Lend%d:\n", Label_id);
+		}
+		Label_id++;
+		return;
+	case ND_WHILE:
+		printf(".Lbegin%d:\n", Label_id);
+		gen(node->lhs);
+		printf("  pop rax\n");
+		printf("  cmp rax, 0\n");
+		printf("  je .Lend%d\n", Label_id);
+		gen(node->rhs);
+		printf("  jmp .Lbegin%d\n", Label_id);
+		printf(".Lend%d:\n", Label_id);
+		Label_id++;
+		return;
+	case ND_FOR:
+		if (node->init != NULL) gen(node->init);
+		printf(".Lbegin%d:\n", Label_id);
+		if (node->condition != NULL) {
+			gen(node->condition);
+			printf("  pop rax\n");
+			printf("  cmp rax, 0\n");
+			printf("  je .Lend%d\n", Label_id);
+		}
+		gen(node->then_stmt);
+		if (node->loop != NULL) gen(node->loop);
+		printf("  jmp .Lbegin%d\n", Label_id);
+		printf(".Lend%d:\n", Label_id);
+		Label_id++;
 		return;
 	default:
 		break;

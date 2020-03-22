@@ -17,7 +17,7 @@ extern const int reserved_size;
  * 
  */
 typedef enum {
-	TK_RETURN,
+	TK_CONTROL_FLOW,
 	TK_IDENT,
 	TK_NUM,
 	TK_RESERVED,
@@ -51,6 +51,7 @@ LVar *find_lvar(Token *tok);
 Token *tokenize(char *p);
 bool consume(char *op);
 bool consume_ident();
+int consume_control_flow();
 void expect(char *op);
 int expect_num();
 void expect_ident();
@@ -72,6 +73,10 @@ typedef enum {
 	ND_ASSIGN,
 	ND_LVAR,
 	ND_RETURN,
+	ND_IF,
+	// ND_ELSE,
+	ND_WHILE,
+	ND_FOR,
 } NodeKind;
 
 typedef struct Node Node;
@@ -81,6 +86,11 @@ extern Node *code[100];
  * @brief 抽象構文木の頂点の定義
  * @param lhs 左の子ノード
  * @param rhs 右の子ノード
+ * @param condition ND_IFのときの条件またはND_FORのときの条件
+ * @param them_stmt ND_IFまたはND_FORのときの条件を満たした場合のステートメント
+ * @param else_stmt ND_IFのときの条件を満たさなかった場合のステートメント
+ * @param init ND_FORのときの初期条件
+ * @param loop ND_FORのときの繰り返し動作
  * 
  */
 struct Node {
@@ -89,6 +99,15 @@ struct Node {
 	Node *rhs;
 	int val;
 	int offset;
+
+	// if
+	Node *condition;
+	Node *then_stmt;
+	Node *else_stmt;
+
+	// for 以下の変数とconditionとthen_stmtを使う
+	Node *init;
+	Node *loop;
 };
 
 void program();

@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   for (Token *now = token; now->kind != TK_EOF; now = now->next) {
 	  fprintf(stderr, "%s, %d, %d\n", now->str, now->len, now->val);
   }
-
+  
   locals = calloc(1, sizeof(LVar));
   locals->len = 0;
   locals->name = "";

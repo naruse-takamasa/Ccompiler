@@ -48,7 +48,26 @@ Node *new_node_lvar(Token *tok) {
 	return node;
 }
 
+Node *new_node_if(Node *condition, Node *then_stmt, Node *else_stmt) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_IF;
+	node->condition = condition;
+	node->then_stmt = then_stmt;
+	node->else_stmt = else_stmt;
+	return node;
+}
+
+Node *new_node_for(Node *init, Node *condition, Node *loop) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_FOR;
+	node->init = init;
+	node->condition = condition;
+	node->loop = loop;
+	return node;
+}
+
 Node *expr();
+Node *unary();
 
 Node *primary() {
 	if (consume("(")) {
@@ -61,7 +80,9 @@ Node *primary() {
 		expect_ident();
 		return node;
 	}
-	return new_node_num(expect_num());
+	// マジで????
+	if (token->kind == TK_NUM) return new_node_num(expect_num());
+	return unary();
 }
 
 Node *unary() {
@@ -133,13 +154,53 @@ Node *expr() {
 
 Node *stmt() {
 	Node *node;
-	if (token->kind == TK_RETURN) {
-		token = token->next;
-		node = new_node(ND_RETURN, expr(), NULL);
+	int control_id = consume_control_flow();
+	if (control_id != -1) {
+		switch (control_id)
+		{
+		case 0: // return
+			node = new_node(ND_RETURN, expr(), NULL);
+			expect(";");
+			break;
+		case 1: // if
+			expect("(");
+			node = new_node_if(expr(), NULL, NULL);
+			expect(")");
+			node->then_stmt = stmt();
+			int next_control_id = consume_control_flow();
+			if (next_control_id == 2) {
+				node->else_stmt = stmt();
+			}
+			break;
+		case 3: // while
+			expect("(");
+			node = new_node(ND_WHILE, expr(), NULL);
+			expect(")");
+			node->rhs = stmt();
+			break;
+		case 4: // for
+			node = new_node_for(NULL, NULL, NULL);
+			expect("(");
+			if (!consume(";")) {
+				node->init = expr();
+				expect(";");
+			}
+			if (!consume(";")) {
+				node->condition = expr();
+				expect(";");
+			}
+			if (!consume(")")) {
+				node->loop = expr();
+				expect(")");
+			}
+			node->then_stmt = stmt();
+		default:
+			break;
+		}
 	} else {
 		node = expr();
+		expect(";");
 	}
-	expect(";");
 	return node;
 }
 

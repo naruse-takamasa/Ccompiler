@@ -18,6 +18,11 @@
 char reserved[][20] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";"};
 int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1};
 const int reserved_size = 14;
+
+char control_flow[][20] = {"return", "if", "else", "while", "for"};
+int control_flow_len[] = {6, 2, 4, 5, 3};
+const int control_flow_size = 5;
+
 Token *token;
 
 bool consume(char *op) {
@@ -55,6 +60,32 @@ bool is_alnum(char c) {
 	return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || (c == '_');
 }
 
+int consume_control_flow() {
+	if (token->kind != TK_CONTROL_FLOW) return -1;
+	int res = token->val;
+	token = token->next;
+	return res;
+	// error("consume_control_flow (該当なし) \n");
+}
+
+int is_reserved(char *p) {
+	for (int i = 0; i < reserved_size; i++) {
+		if (memcmp(p, reserved[i], reserved_len[i]) == 0) return i;
+	}
+	return -1;
+}
+
+int is_control_flow(char *p) {
+	for (int i = 0; i < control_flow_size; i++) {
+		if (memcmp(p, control_flow[i], control_flow_len[i]) == 0 &&
+			!is_alnum(p[control_flow_len[i]])
+		) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 bool at_eof() {
 	return token->kind == TK_EOF;
 }
@@ -63,26 +94,19 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
 	Token *tok = calloc(1, sizeof(Token));
 	tok->kind = kind;
 	tok->str = str;
-	if (kind == TK_RESERVED) {
-		bool accept = false;
-		for (int i = 0; i < reserved_size; i++) {
-			if (memcmp(str, reserved[i], reserved_len[i]) == 0) {
-				tok->len = reserved_len[i];
-				accept = true;
-				break;
-			}
-		}
-		if (!accept) error_at(str, "new_token error\n");
-	}
+	// if (kind == TK_RESERVED) {
+	// 	bool accept = false;
+	// 	for (int i = 0; i < reserved_size; i++) {
+	// 		if (memcmp(str, reserved[i], reserved_len[i]) == 0) {
+	// 			tok->len = reserved_len[i];
+	// 			accept = true;
+	// 			break;
+	// 		}
+	// 	}
+	// 	if (!accept) error_at(str, "new_token error\n");
+	// }
 	cur->next = tok;
 	return tok;
-}
-
-bool is_reserved(char *p) {
-	for (int i = 0; i < reserved_size; i++) {
-		if (memcmp(p, reserved[i], reserved_len[i]) == 0) return true;
-	}
-	return false;
 }
 
 Token *tokenize(char *p) {
@@ -90,27 +114,38 @@ Token *tokenize(char *p) {
 	head.next = NULL;
 	Token *cur = &head;
 	while (*p) {
+		fprintf(stderr, "now tokenize : %s \n", p);
+		// 空白
 		if (isspace(*p)) {
 			p++;
 			continue;
 		}
-		if (is_reserved(p)) {
+		// 記号
+		int reserved_id = is_reserved(p);
+		if (reserved_id != -1) {
 			cur = new_token(TK_RESERVED, cur, p);
-			p += cur->len;
+			cur->len = reserved_len[reserved_id];
+			p += reserved_len[reserved_id];
 			continue;
 		}
+		// 数値
 		if (isdigit(*p)) {
 			cur = new_token(TK_NUM, cur, p);
 			cur->val = strtol(p, &p, 10);
 			continue;
 		}
-		if (memcmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
-			cur = new_token(TK_RETURN, cur, p);
-			cur->len = 6;
-			p += 6;
+		// 制御構文
+		int control_id = is_control_flow(p);
+		if (control_id != -1) {
+			cur = new_token(TK_CONTROL_FLOW, cur, p);
+			cur->len = control_flow_len[control_id];
+			p += control_flow_len[control_id];
+			cur->val = control_id;
 			continue;
 		}
+		// 変数
 		if (is_alnum(*p)) {
+			fprintf(stderr, "hi\n");
 			cur = new_token(TK_IDENT, cur, p);
 			int idx = 0;
 			while (is_alnum(p[idx])) {
