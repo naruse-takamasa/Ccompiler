@@ -76,10 +76,22 @@ Node *primary() {
 		Token *now = token;
 		expect_ident();
 		if (consume("(")) {
+			// fprintf(stderr, "now : %s\n", token->str);
 			Node *node = calloc(1, sizeof(Node));
 			node->kind = ND_FUNCALL;
 			node->funcname = strndup(now->str, now->len);
-			expect(")");
+			// TODO:
+			Node *now = node;
+			while (!consume(")")) {
+				//fprintf(stderr, "now : %s\n", token->str);
+				Node *arg = expr();
+				//arg->kind = ND_ARG;
+				now->next = arg;
+				now = arg;
+				consume(",");
+			}
+			now->next = NULL;
+			//fprintf(stderr, "return\n");
 			return node;
 		}
 		Node *node = new_node_lvar(now);

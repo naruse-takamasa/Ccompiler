@@ -84,6 +84,7 @@ typedef enum {
 	ND_FOR,
 	ND_BLOCK,
 	ND_FUNCALL,
+	ND_ARG,
 } NodeKind;
 
 typedef struct Node Node;

@@ -2,6 +2,7 @@
 cat <<EOF | gcc -xc -c -o tmp2.o -
 int ret3() { return 3; }
 int ret5() { return 5; }
+int foo(int x, int y) {return x + y;}
 EOF
 
 try() {
@@ -23,6 +24,8 @@ try() {
 }
 try 3 'return ret3();'
 try 5 'return ret5();'
+try 10 "return foo(3, 7);"
+try 21 "return foo(11, 10);"
 try 11 "a = 3; if (a == 3) {return 11;}"
 try 15 "a = 3; while (a < 1) a = a - 1; if (a == 3) return 10; else return 15;"
 try 10 "for (i = 0; i < 2; i = i + 1) ; return 10;"

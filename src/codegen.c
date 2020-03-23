@@ -17,6 +17,7 @@ void gen_lval(Node *node) {
 	printf("  push rax\n");
 }
 
+char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 int Label_id = 0;
 
 void gen(Node *node) {
@@ -40,6 +41,7 @@ void gen(Node *node) {
 		printf("  push rdi\n");
 		return;
 	case ND_RETURN:
+		// returnされた結果はraxにある.
 		gen(node->lhs);
 		printf("  pop rax\n");
 		printf("  mov rsp, rbp\n");
@@ -100,12 +102,40 @@ void gen(Node *node) {
 		printf("  push rax\n");
 		return;
 	case ND_FUNCALL:
-		printf("  call %s\n", node->funcname);
-		printf("  push rax\n");
+		{
+			int arg_count = 0;
+			for (Node *now = node->next; now ; now = now->next) {
+				gen(now);
+				arg_count++;
+			}
+			for (int i = arg_count - 1; i >= 0; i--) {
+				printf("  pop %s\n", argreg[i]);
+			}
+			// 仕様上rspが16の倍数で関数をcallしなくてはならない
+			// rspが16の倍数かどうかの判定
+			printf("  mov rax, rsp\n");
+			printf("  and rax, 15\n");
+			printf("  jnz .Lcall%d\n", Label_id);
+			// rspが16の倍数だった場合
+			printf("  call %s\n", node->funcname);
+			printf("  jmp .Lend%d\n", Label_id);
+			// rspが16の倍数ではなかった場合
+			printf(".Lcall%d:\n", Label_id);
+			printf("  sub rsp, 8\n");
+			printf("  mov rax, 0\n");
+			printf("  call %s\n", node->funcname);
+			printf("  add rsp, 8\n");
+			// 最後に呼び出した関数の結果をpushする
+			printf(".Lend%d:\n", Label_id);
+			printf("  push rax\n");
+			Label_id++;
+		}
 		return;
 	default:
 		break;
 	}
+
+	// 比較演算の記号のひっくり返し
 	if (node->kind == ND_GE) {
 		gen(node->rhs);
 		gen(node->lhs);
@@ -118,6 +148,9 @@ void gen(Node *node) {
 		gen(node->lhs);
 		gen(node->rhs);
 	}
+
+	// ここ以降は算術演算と比較
+	// 算術と比較は最後に必ずpushされる
 	printf("  pop rdi\n");
 	printf("  pop rax\n");
 	switch (node->kind)
