@@ -10,9 +10,6 @@
  */
 
 #include "SverigeCC.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
 
 /**
  * @brief 文のどこでコンパイルエラーしたかをエラー出力

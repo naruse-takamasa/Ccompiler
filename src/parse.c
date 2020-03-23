@@ -9,9 +9,6 @@
  * 
  */
 #include "SverigeCC.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 
 Node *code[100];
 
@@ -76,8 +73,16 @@ Node *primary() {
 		return node;
 	}
 	if (token->kind == TK_IDENT) {
-		Node *node = new_node_lvar(token);
+		Token *now = token;
 		expect_ident();
+		if (consume("(")) {
+			Node *node = calloc(1, sizeof(Node));
+			node->kind = ND_FUNCALL;
+			node->funcname = strndup(now->str, now->len);
+			expect(")");
+			return node;
+		}
+		Node *node = new_node_lvar(now);
 		return node;
 	}
 	// マジで????
@@ -212,7 +217,6 @@ Node *stmt() {
 		while (!consume("}")) {
 			Node *statement = stmt();
 			now->next = statement;
-			//node->tail = statement;
 			now = statement;
 		}
 		now->next = NULL;

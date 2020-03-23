@@ -9,11 +9,6 @@
  * 
  */
 #include "SverigeCC.h"
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
 
 char reserved[][10] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";", "{", "}"};
 int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1};
@@ -143,9 +138,8 @@ Token *tokenize(char *p) {
 			cur->val = control_id;
 			continue;
 		}
-		// 変数
+		// 変数か関数
 		if (is_alnum(*p)) {
-			fprintf(stderr, "hi\n");
 			cur = new_token(TK_IDENT, cur, p);
 			int idx = 0;
 			while (is_alnum(p[idx])) {

@@ -9,7 +9,6 @@
  * 
  */
 #include "SverigeCC.h"
-#include <stdio.h>
 
 void gen_lval(Node *node) {
 	if (node->kind != ND_LVAR) error("代入の左辺値が変数ではありません\n");
@@ -98,6 +97,10 @@ void gen(Node *node) {
 		}
 		// main関数で"  pop rax"が必ず実行されるので、for文で全部"  pop rax"するとマズい.
 		// だから、"  push rax"して直近に取り出されたやつだけまたpushしてある.
+		printf("  push rax\n");
+		return;
+	case ND_FUNCALL:
+		printf("  call %s\n", node->funcname);
 		printf("  push rax\n");
 		return;
 	default:

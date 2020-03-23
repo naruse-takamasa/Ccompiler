@@ -9,8 +9,6 @@
  * 
  */
 #include "SverigeCC.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 char *user_input;
 LVar *locals;
@@ -26,9 +24,9 @@ int main(int argc, char **argv) {
 
   user_input = argv[1];
   token = tokenize(user_input);
-  for (Token *now = token; now->kind != TK_EOF; now = now->next) {
-	  fprintf(stderr, "%s, %d, %d\n", now->str, now->len, now->val);
-  }
+//   for (Token *now = token; now->kind != TK_EOF; now = now->next) {
+// 	  fprintf(stderr, "%s, %d, %d\n", now->str, now->len, now->val);
+//   }
   
   locals = calloc(1, sizeof(LVar));
   locals->len = 0;

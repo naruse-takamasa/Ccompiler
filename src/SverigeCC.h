@@ -1,4 +1,10 @@
+#define _GNU_SOURCE
+#include <ctype.h>
+#include <stdarg.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 ////////////////////////main.c//////////////////////
 extern char *user_input;
@@ -74,10 +80,10 @@ typedef enum {
 	ND_LVAR,
 	ND_RETURN,
 	ND_IF,
-	// ND_ELSE,
 	ND_WHILE,
 	ND_FOR,
 	ND_BLOCK,
+	ND_FUNCALL,
 } NodeKind;
 
 typedef struct Node Node;
@@ -112,6 +118,9 @@ struct Node {
 
 	// block
 	Node *next;
+
+	// function
+	char *funcname;
 };
 
 void program();
