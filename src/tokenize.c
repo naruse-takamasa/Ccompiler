@@ -64,7 +64,6 @@ int consume_control_flow() {
 	int res = token->val;
 	token = token->next;
 	return res;
-	// error("consume_control_flow (該当なし) \n");
 }
 
 int is_reserved(char *p) {
@@ -93,17 +92,6 @@ Token *new_token(TokenKind kind, Token *cur, char *str) {
 	Token *tok = calloc(1, sizeof(Token));
 	tok->kind = kind;
 	tok->str = str;
-	// if (kind == TK_RESERVED) {
-	// 	bool accept = false;
-	// 	for (int i = 0; i < reserved_size; i++) {
-	// 		if (memcmp(str, reserved[i], reserved_len[i]) == 0) {
-	// 			tok->len = reserved_len[i];
-	// 			accept = true;
-	// 			break;
-	// 		}
-	// 	}
-	// 	if (!accept) error_at(str, "new_token error\n");
-	// }
 	cur->next = tok;
 	return tok;
 }

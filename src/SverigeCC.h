@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -6,14 +7,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-////////////////////////main.c//////////////////////
+////////////////////////////////////////////////////////////////////////////
+// main.c
+////////////////////////////////////////////////////////////////////////////
+
 extern char *user_input;
 
-////////////////////////util.c//////////////////////
+////////////////////////////////////////////////////////////////////////////
+// util.c
+////////////////////////////////////////////////////////////////////////////
+
 void error_at(char *loc, char *fmt, ...);
 void error(char *fmt, ...);
 
-////////////////////////tokenize.c//////////////////////
+////////////////////////////////////////////////////////////////////////////
+// tokenize.c
+////////////////////////////////////////////////////////////////////////////
+
 extern char reserved[][10];
 extern int reserved_len[];
 extern const int reserved_size;
@@ -23,15 +33,28 @@ extern const int reserved_size;
  * 
  */
 typedef enum {
+	// 制御構文
 	TK_CONTROL_FLOW,
+	// 文字列(変数名とか関数名とか)
 	TK_IDENT,
+	// 数値
 	TK_NUM,
+	// 記号
 	TK_RESERVED,
+	// 終端
 	TK_EOF,
 } TokenKind;
 
 typedef struct Token Token;
-
+/**
+ * @brief トークン情報を管理する
+ * @param kind トークンの種類
+ * @param next 次に続くトークンのアドレス
+ * @param val 数値だったときの値
+ * @param str このトークンの文字列
+ * @param len このトークンの文字列の長さ
+ * 
+ */
 struct Token {
 	TokenKind kind;
 	Token *next;
@@ -41,6 +64,17 @@ struct Token {
 };
 
 extern Token *token;
+
+Token *tokenize(char *p);
+bool consume(char *op);
+bool consume_ident();
+bool is_ident();
+int consume_control_flow();
+int is_control_flow();
+void expect(char *op);
+int expect_num();
+void expect_ident();
+bool at_eof();
 
 typedef struct LVar LVar;
 
@@ -54,18 +88,10 @@ struct LVar {
 extern LVar *locals[100];
 LVar *find_lvar(Token *tok);
 
-Token *tokenize(char *p);
-bool consume(char *op);
-bool consume_ident();
-bool is_ident();
-int consume_control_flow();
-int is_control_flow();
-void expect(char *op);
-int expect_num();
-void expect_ident();
-bool at_eof();
+////////////////////////////////////////////////////////////////////////////
+// parse.c
+////////////////////////////////////////////////////////////////////////////
 
-////////////////////////parse.c//////////////////////
 typedef enum {
 	// 算術演算
 	ND_ADD,
@@ -139,5 +165,8 @@ struct Node {
 extern int func_id;
 void program();
 
-////////////////////////codegen.c//////////////////////
+////////////////////////////////////////////////////////////////////////////
+// codegen.c
+////////////////////////////////////////////////////////////////////////////
+
 void gen(Node *node);

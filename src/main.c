@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "argc is not equal 2\n");
 		return 1;
 	} else {
-		fprintf(stderr, "compiler name : %s\n", argv[0]);
+		// fprintf(stderr, "compiler name : %s\n", argv[0]);
 		fprintf(stderr, "input code : %s\n", argv[1]);
 	}
 
@@ -29,27 +29,14 @@ int main(int argc, char **argv) {
 	//   }
 	fprintf(stderr, "tokenize OK\n");
 
-	// locals = calloc(1, sizeof(LVar));
-	// locals->len = 0;
-	// locals->name = "";
-	// locals->next = NULL;
-	// locals->offset = 0;
-
 	program();
 	fprintf(stderr, "program OK\n");
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global main\n");
-	// printf("main:\n");
-	// printf("  push rbp\n");
-	// printf("  mov rbp, rsp\n");
-	// printf("  sub rsp, %d\n", locals->offset);
 	for (int i = 0; code[i]; i++) {
 		gen(code[i]);
 		printf("  pop rax\n");
 	}
-	printf("  mov rsp, rbp\n");
-	printf("  pop rbp\n");
-	printf("  ret\n");
 	return 0;
 }
