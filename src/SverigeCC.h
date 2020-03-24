@@ -51,13 +51,15 @@ struct LVar {
 	int offset;
 };
 
-extern LVar *locals;
+extern LVar *locals[100];
 LVar *find_lvar(Token *tok);
 
 Token *tokenize(char *p);
 bool consume(char *op);
 bool consume_ident();
+bool is_ident();
 int consume_control_flow();
+int is_control_flow();
 void expect(char *op);
 int expect_num();
 void expect_ident();
@@ -65,26 +67,35 @@ bool at_eof();
 
 ////////////////////////parse.c//////////////////////
 typedef enum {
+	// 算術演算
 	ND_ADD,
 	ND_SUB,
 	ND_MUL,
 	ND_DIV,
+	// 比較演算
 	ND_LE,
 	ND_GE,
 	ND_LT,
 	ND_GT,
 	ND_EQ,
 	ND_NEQ,
+	// 数値
 	ND_NUM,
+	// 代入
 	ND_ASSIGN,
+	// 代入時の左辺の変数
 	ND_LVAR,
+	// 制御構文
 	ND_RETURN,
 	ND_IF,
 	ND_WHILE,
 	ND_FOR,
+	// {}
 	ND_BLOCK,
+	// 関数呼び出し
 	ND_FUNCALL,
-	ND_ARG,
+	// 関数定義
+	ND_FUNCDEF,
 } NodeKind;
 
 typedef struct Node Node;
@@ -122,8 +133,10 @@ struct Node {
 
 	// function
 	char *funcname;
+	Node *next_arg;
+	Node *next_stmt;
 };
-
+extern int func_id;
 void program();
 
 ////////////////////////codegen.c//////////////////////

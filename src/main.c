@@ -11,7 +11,7 @@
 #include "SverigeCC.h"
 
 char *user_input;
-LVar *locals;
+LVar *locals[100];
 
 int main(int argc, char **argv) {
 	if (argc != 2) {
@@ -29,21 +29,21 @@ int main(int argc, char **argv) {
 	//   }
 	fprintf(stderr, "tokenize OK\n");
 
-	locals = calloc(1, sizeof(LVar));
-	locals->len = 0;
-	locals->name = "";
-	locals->next = NULL;
-	locals->offset = 0;
+	// locals = calloc(1, sizeof(LVar));
+	// locals->len = 0;
+	// locals->name = "";
+	// locals->next = NULL;
+	// locals->offset = 0;
 
 	program();
 	fprintf(stderr, "program OK\n");
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global main\n");
-	printf("main:\n");
-	printf("  push rbp\n");
-	printf("  mov rbp, rsp\n");
-	printf("  sub rsp, %d\n", locals->offset);
+	// printf("main:\n");
+	// printf("  push rbp\n");
+	// printf("  mov rbp, rsp\n");
+	// printf("  sub rsp, %d\n", locals->offset);
 	for (int i = 0; code[i]; i++) {
 		gen(code[i]);
 		printf("  pop rax\n");

@@ -11,6 +11,7 @@
 #include "SverigeCC.h"
 
 Node *code[100];
+int func_id = 0;
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
 	Node *node = calloc(1, sizeof(Node));
@@ -27,6 +28,12 @@ Node *new_node_num(int val) {
 	return node;
 }
 
+/**
+ * @brief tok->strという変数のオフセットを計算し、ノードを作成
+ * 
+ * @param tok 
+ * @return Node* 
+ */
 Node *new_node_lvar(Token *tok) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
@@ -37,9 +44,9 @@ Node *new_node_lvar(Token *tok) {
 		lvar = calloc(1, sizeof(LVar));
 		lvar->name = tok->str;
 		lvar->len = tok->len;
-		lvar->offset = locals->offset + 8;
-		lvar->next = locals;
-		locals = lvar;
+		lvar->offset = locals[func_id]->offset + 8;
+		lvar->next = locals[func_id];
+		locals[func_id] = lvar;
 		node->offset = lvar->offset;
 	}
 	return node;
@@ -76,22 +83,17 @@ Node *primary() {
 		Token *now = token;
 		expect_ident();
 		if (consume("(")) {
-			// fprintf(stderr, "now : %s\n", token->str);
 			Node *node = calloc(1, sizeof(Node));
 			node->kind = ND_FUNCALL;
 			node->funcname = strndup(now->str, now->len);
-			// TODO:
 			Node *now = node;
 			while (!consume(")")) {
-				//fprintf(stderr, "now : %s\n", token->str);
 				Node *arg = expr();
-				//arg->kind = ND_ARG;
 				now->next = arg;
 				now = arg;
 				consume(",");
 			}
 			now->next = NULL;
-			//fprintf(stderr, "return\n");
 			return node;
 		}
 		Node *node = new_node_lvar(now);
@@ -176,6 +178,7 @@ Node *stmt() {
 		switch (control_id)
 		{
 		case 0: // return
+			// fprintf(stderr, "%s\n", token->str);
 			node = new_node(ND_RETURN, expr(), NULL);
 			expect(";");
 			break;
@@ -184,7 +187,7 @@ Node *stmt() {
 			node = new_node_if(expr(), NULL, NULL);
 			expect(")");
 			node->then_stmt = stmt();
-			int next_control_id = consume_control_flow();
+			int next_control_id = is_control_flow();
 			if (next_control_id == 2) {
 				node->else_stmt = stmt();
 			}
@@ -240,10 +243,52 @@ Node *stmt() {
 	return node;
 }
 
+Node *func_def() {
+	if (!is_ident()) error_at(token->str, "関数名を宣言してください\n");
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_FUNCDEF;
+	node->offset = func_id;
+	node->funcname = strndup(token->str, token->len);
+
+	// この関数内でのローカル変数の集合の初期化
+	locals[func_id] = calloc(1, sizeof(LVar));
+	locals[func_id]->len = 0;
+	locals[func_id]->name = "";
+	locals[func_id]->next = NULL;
+	locals[func_id]->offset = 0;
+
+	expect_ident();
+
+	// 引数を解析
+	expect("(");
+	Node *now_arg = node;
+	while (!consume(")")) {
+		Node *arg = new_node_lvar(token);
+		now_arg->next_arg = arg;
+		now_arg = arg;
+		consume_ident();
+		consume(",");
+	}
+	now_arg->next_arg = NULL;
+
+	// 関数本体の解析
+	expect("{");
+	Node *now = node;
+	while (!consume("}")) {
+		Node *statement = stmt();
+		now->next_stmt = statement;
+		now = statement;
+	}
+	now->next_stmt = NULL;
+
+	func_id++;
+	return node;
+}
+
 void program() {
 	int idx = 0;
 	while (!at_eof()) {
-		code[idx] = stmt();
+		code[idx] = func_def();
 		idx++;
 	}
 	code[idx] = NULL;

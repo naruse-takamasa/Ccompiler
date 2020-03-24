@@ -24,6 +24,7 @@ void gen(Node *node) {
 	switch (node->kind)
 	{
 	case ND_NUM:
+		// fprintf(stderr, "num\n");
 		printf("  push %d\n", node->val);
 		return;
 	case ND_LVAR:
@@ -41,6 +42,7 @@ void gen(Node *node) {
 		printf("  push rdi\n");
 		return;
 	case ND_RETURN:
+		// fprintf(stderr, "return\n");
 		// returnされた結果はraxにある.
 		gen(node->lhs);
 		printf("  pop rax\n");
@@ -49,6 +51,7 @@ void gen(Node *node) {
 		printf("  ret\n");
 		return;
 	case ND_IF:
+		// fprintf(stderr, "if\n");
 		gen(node->condition);
 		printf("  pop rax\n");
 		printf("  cmp rax, 0\n");
@@ -130,6 +133,28 @@ void gen(Node *node) {
 			printf("  push rax\n");
 			Label_id++;
 		}
+		return;
+	case ND_FUNCDEF:
+		printf("%s:\n", node->funcname);
+		// プロローグ
+		// ローカル変数領域の確保
+		printf("  push rbp\n");
+		printf("  mov rbp, rsp\n");
+		printf("  sub rsp, %d\n", locals[node->offset]->offset);
+		// 引数の値をローカル変数領域に移動
+		for (int i = 8; i <= locals[node->offset]->offset; i += 8) {
+			printf("  mov rax, rbp\n");
+			printf("  sub rax, %d\n", i);
+			printf("  mov [rax], %s\n", argreg[(i - 1) / 8]);
+		}
+		//
+		for (Node *now = node->next_stmt; now; now = now->next_stmt) {
+			gen(now);
+		}
+		// エピローグ
+		printf("  mov rsp, rbp\n");
+		printf("  pop rbp\n");
+		printf("  ret\n");
 		return;
 	default:
 		break;

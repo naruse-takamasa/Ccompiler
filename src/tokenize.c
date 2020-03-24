@@ -55,6 +55,10 @@ bool is_alnum(char c) {
 	return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || (c == '_');
 }
 
+bool is_ident() {
+	return token->kind == TK_IDENT;
+}
+
 int consume_control_flow() {
 	if (token->kind != TK_CONTROL_FLOW) return -1;
 	int res = token->val;
@@ -156,7 +160,7 @@ Token *tokenize(char *p) {
 }
 
 LVar *find_lvar(Token *tok) {
-	for (LVar *now = locals; now; now = now->next) {
+	for (LVar *now = locals[func_id]; now; now = now->next) {
 		if (tok->len == now->len && memcmp(tok->str, now->name, tok->len) == 0) {
 			return now;
 		}
