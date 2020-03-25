@@ -34,9 +34,8 @@ int main(int argc, char **argv) {
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global main\n");
-	for (int i = 0; code[i]; i++) {
-		gen(code[i]);
-		printf("  pop rax\n");
+	for (Function *now = code; now; now = now->next) {
+		func_gen(now);
 	}
 	return 0;
 }

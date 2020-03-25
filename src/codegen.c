@@ -10,7 +10,13 @@
  */
 #include "SverigeCC.h"
 
+/**
+ * @brief 変数のアドレスを調べて、その値をpushする
+ * 
+ * @param node 
+ */
 void gen_lval(Node *node) {
+	if (node->kind == ND_DEREF) return gen(node->lhs);
 	if (node->kind != ND_LVAR) error("代入の左辺値が変数ではありません\n");
 	printf("  mov rax, rbp\n");
 	printf("  sub rax, %d\n", node->offset);
@@ -24,7 +30,6 @@ void gen(Node *node) {
 	switch (node->kind)
 	{
 	case ND_NUM:
-		// fprintf(stderr, "num\n");
 		printf("  push %d\n", node->val);
 		return;
 	case ND_LVAR:
@@ -42,7 +47,6 @@ void gen(Node *node) {
 		printf("  push rdi\n");
 		return;
 	case ND_RETURN:
-		// fprintf(stderr, "return\n");
 		// returnされた結果はraxにある.
 		gen(node->lhs);
 		printf("  pop rax\n");
@@ -51,7 +55,6 @@ void gen(Node *node) {
 		printf("  ret\n");
 		return;
 	case ND_IF:
-		// fprintf(stderr, "if\n");
 		gen(node->condition);
 		printf("  pop rax\n");
 		printf("  cmp rax, 0\n");
@@ -134,27 +137,14 @@ void gen(Node *node) {
 			Label_id++;
 		}
 		return;
-	case ND_FUNCDEF:
-		printf("%s:\n", node->funcname);
-		// プロローグ
-		// ローカル変数領域の確保
-		printf("  push rbp\n");
-		printf("  mov rbp, rsp\n");
-		printf("  sub rsp, %d\n", locals[node->offset]->offset);
-		// 引数の値をローカル変数領域に移動
-		for (int i = 8; i <= locals[node->offset]->offset; i += 8) {
-			printf("  mov rax, rbp\n");
-			printf("  sub rax, %d\n", i);
-			printf("  mov [rax], %s\n", argreg[(i - 1) / 8]);
-		}
-		//
-		for (Node *now = node->next_stmt; now; now = now->next_stmt) {
-			gen(now);
-		}
-		// エピローグ
-		printf("  mov rsp, rbp\n");
-		printf("  pop rbp\n");
-		printf("  ret\n");
+	case ND_ADDR:
+		gen_lval(node->lhs);
+		return;
+	case ND_DEREF:
+		gen(node->lhs);
+		printf("  pop rax\n");
+		printf("  mov rax, [rax]\n");
+		printf("  push rax\n");
 		return;
 	default:
 		break;
@@ -217,4 +207,37 @@ void gen(Node *node) {
 		break;
 	}
 	printf("  push rax\n");
+}
+
+void func_gen(Function *func) {
+	printf("%s:\n", func->name);
+
+	// プロローグ
+	// ローカル変数領域の確保
+	printf("  push rbp\n");
+	printf("  mov rbp, rsp\n");
+	printf("  sub rsp, %d\n", func->total_offset);
+
+	// 引数の値をローカル変数領域に移動
+	// for (int i = 0; i < func_arg_count[node->offset]; i++) {
+	// 	printf("  mov rax, rbp\n");
+	// 	printf("  sub rax, %d\n", (i + 1) * 8);
+	// 	printf("  mov [rax], %s\n", argreg[i]);
+	// }
+	for (int i = 0; i < func->arg_count; i++) {
+		printf("  mov rax, rbp\n");
+		printf("  sub rax, %d\n", (i + 1) * 8);
+		printf("  mov [rax], %s\n", argreg[i]);
+	}
+
+	// 本文
+	for (Node *now = func->next_stmt; now; now = now->next_stmt) {
+		gen(now);
+	}
+
+	// エピローグ
+	printf("  mov rsp, rbp\n");
+	printf("  pop rbp\n");
+	printf("  ret\n");
+	return;
 }

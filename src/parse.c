@@ -10,8 +10,8 @@
  */
 #include "SverigeCC.h"
 
-Node *code[100];
-int func_id = 0;
+Function *code;
+Function *now_func;
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
 	Node *node = calloc(1, sizeof(Node));
@@ -38,15 +38,21 @@ Node *new_node_lvar(Token *tok) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
 	LVar *lvar = find_lvar(tok);
+	fprintf(stderr, "find\n");
 	if (lvar) {
 		node->offset = lvar->offset;
 	} else {
+		// TODO:
+		// error("その変数は知らん\n");
 		lvar = calloc(1, sizeof(LVar));
 		lvar->name = tok->str;
 		lvar->len = tok->len;
-		lvar->offset = locals[func_id]->offset + 8;
-		lvar->next = locals[func_id];
-		locals[func_id] = lvar;
+		// lvar->offset = locals[func_id]->offset + 8;
+		// lvar->next = locals[func_id];
+		// locals[func_id] = lvar;
+		lvar->offset = now_func->local->offset + 8;
+		lvar->next = now_func->local;
+		now_func->local = lvar;
 		node->offset = lvar->offset;
 	}
 	return node;
@@ -110,6 +116,12 @@ Node *unary() {
 		return node;
 	} else if (consume("-")) {
 		Node *node = new_node(ND_SUB, new_node_num(0), primary());
+		return node;
+	} else if (consume("*")) {
+		Node *node = new_node(ND_DEREF, unary(), NULL);
+		return node;
+	} else if (consume("&")) {
+		Node *node = new_node(ND_ADDR, unary(), NULL);
 		return node;
 	} else {
 		return primary();
@@ -243,53 +255,59 @@ Node *stmt() {
 	return node;
 }
 
-Node *func_def() {
+void func_def() {
 	if (!is_ident()) error_at(token->str, "関数名を宣言してください\n");
-	Node *node = calloc(1, sizeof(Node));
-	node->kind = ND_FUNCDEF;
-	node->offset = func_id;
-	node->funcname = strndup(token->str, token->len);
+	now_func = calloc(1, sizeof(Function));
+
+	now_func->name = strndup(token->str, token->len);
 
 	// この関数内でのローカル変数の集合の初期化
-	locals[func_id] = calloc(1, sizeof(LVar));
-	locals[func_id]->len = 0;
-	locals[func_id]->name = "";
-	locals[func_id]->next = NULL;
-	locals[func_id]->offset = 0;
+	now_func->local = calloc(1, sizeof(LVar));
+	now_func->local->len = 0;
+	now_func->local->name = "";
+	now_func->local->next = NULL;
+	now_func->local->offset = 0;
 
 	expect_ident();
 
 	// 引数を解析
 	expect("(");
-	Node *now_arg = node;
+	Node **now_arg = &(now_func->next_arg);
+	int arg_cnt = 0;
 	while (!consume(")")) {
 		Node *arg = new_node_lvar(token);
-		now_arg->next_arg = arg;
-		now_arg = arg;
+		arg->kind = ND_ARG;
+		*now_arg = arg;
+		now_arg = &(arg->next_arg);
+		arg_cnt++;
 		consume_ident();
 		consume(",");
 	}
-	now_arg->next_arg = NULL;
+	now_func->arg_count = arg_cnt;
 
 	// 関数本体の解析
 	expect("{");
-	Node *now = node;
+	Node **now = &(now_func->next_stmt);
 	while (!consume("}")) {
 		Node *statement = stmt();
-		now->next_stmt = statement;
-		now = statement;
+		*now = statement;
+		now = &(statement->next_stmt);
 	}
-	now->next_stmt = NULL;
 
-	func_id++;
-	return node;
+	now_func->total_offset = now_func->local->offset;
 }
 
 void program() {
-	int idx = 0;
+	bool first = true;
+	Function **now;
 	while (!at_eof()) {
-		code[idx] = func_def();
-		idx++;
+		func_def();
+		if (first) {
+			code = now_func;
+			first = false;
+		} else {
+			*now = now_func;
+		}
+		now = &(now_func->next);
 	}
-	code[idx] = NULL;
 }

@@ -10,13 +10,13 @@
  */
 #include "SverigeCC.h"
 
-char reserved[][10] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";", "{", "}", ","};
-int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1};
-const int reserved_size = 17;
+char reserved[][10] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";", "{", "}", ",", "&"};
+int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1};
+const int reserved_size = 18;
 
-char control_flow[][10] = {"return", "if", "else", "while", "for"};
-int control_flow_len[] = {6, 2, 4, 5, 3};
-const int control_flow_size = 5;
+char control_flow[][10] = {"return", "if", "else", "while", "for", "int"};
+int control_flow_len[] = {6, 2, 4, 5, 3, 3};
+const int control_flow_size = 6;
 
 Token *token;
 
@@ -148,7 +148,8 @@ Token *tokenize(char *p) {
 }
 
 LVar *find_lvar(Token *tok) {
-	for (LVar *now = locals[func_id]; now; now = now->next) {
+	fprintf(stderr, "find_lvar\n");
+	for (LVar *now = now_func->local; now; now = now->next) {
 		if (tok->len == now->len && memcmp(tok->str, now->name, tok->len) == 0) {
 			return now;
 		}

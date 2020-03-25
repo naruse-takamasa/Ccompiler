@@ -85,7 +85,7 @@ struct LVar {
 	int offset;
 };
 
-extern LVar *locals[100];
+// extern LVar *locals[100];
 LVar *find_lvar(Token *tok);
 
 ////////////////////////////////////////////////////////////////////////////
@@ -122,10 +122,16 @@ typedef enum {
 	ND_FUNCALL,
 	// 関数定義
 	ND_FUNCDEF,
+	// 仮引数
+	ND_ARG,
+	// アドレス
+	ND_ADDR,
+	// ポインタ
+	ND_DEREF,
 } NodeKind;
 
 typedef struct Node Node;
-extern Node *code[100];
+extern int func_arg_count[100];
 
 /**
  * @brief 抽象構文木の頂点の定義
@@ -159,10 +165,25 @@ struct Node {
 
 	// function
 	char *funcname;
+	Node *next_stmt;
+	Node *next_arg;
+};
+
+typedef struct Function Function;
+
+struct Function {
+	char *name;
+	int arg_count;
 	Node *next_arg;
 	Node *next_stmt;
+	Function *next;
+	int total_offset;
+	LVar *local;
 };
-extern int func_id;
+
+extern Function *now_func;
+extern Function *code;
+
 void program();
 
 ////////////////////////////////////////////////////////////////////////////
@@ -170,3 +191,4 @@ void program();
 ////////////////////////////////////////////////////////////////////////////
 
 void gen(Node *node);
+void func_gen(Function *func);
