@@ -14,6 +14,8 @@ char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 int Label_id = 0;
 int Total_offset;
 
+void gen(Node *node);
+
 void load() {
 	printf("  pop rax\n");
 	printf("  mov rax, [rax]\n");
@@ -26,6 +28,7 @@ void store() {
 	printf("  mov [rax], rdi\n");
 	printf("  push rdi\n");
 }
+
 /**
  * @brief 変数のアドレスを調べて、その値をpushする
  * 
@@ -130,20 +133,16 @@ void gen(Node *node) {
 				printf("  pop %s\n", argreg[i]);
 			}
 			// 仕様上rspが16の倍数で関数をcallしなくてはならない
-			// rspが16の倍数かどうかの判定
 			printf("  mov rax, rsp\n");
 			printf("  and rax, 15\n");
 			printf("  jnz .Lcall%d\n", Label_id);
-			// rspが16の倍数だった場合
 			printf("  call %s\n", node->funcname);
 			printf("  jmp .Lend%d\n", Label_id);
-			// rspが16の倍数ではなかった場合
 			printf(".Lcall%d:\n", Label_id);
 			printf("  sub rsp, 8\n");
 			printf("  mov rax, 0\n");
 			printf("  call %s\n", node->funcname);
 			printf("  add rsp, 8\n");
-			// 最後に呼び出した関数の結果をpushする
 			printf(".Lend%d:\n", Label_id);
 			printf("  push rax\n");
 			Label_id++;
@@ -237,6 +236,7 @@ void func_gen(Function *func) {
 
 	Total_offset = func->total_offset;
 
+	// このアドレスの並びであってるのかな-??
 	for (int i = 0; i < func->arg_count; i++) {
 		printf("  mov rax, rbp\n");
 		printf("  sub rax, %d\n", Total_offset);
@@ -244,7 +244,6 @@ void func_gen(Function *func) {
 		printf("  mov [rax], %s\n", argreg[i]);
 	}
 
-	// 本文
 	for (Node *now = func->next_stmt; now; now = now->next_stmt) {
 		gen(now);
 	}

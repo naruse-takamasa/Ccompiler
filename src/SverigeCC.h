@@ -66,20 +66,20 @@ extern Token *token;
 Token *tokenize(char *p);
 void next();
 bool consume(char *op);
-bool consume_next(char *op);
+bool consume_nxt(char *op);
 bool consume_ident();
 bool is_ident();
-int consume_control_flow_next();
-int consume_control_flow();
-int get_control_id();
-int get_type_id();
-int consume_data_type_next();
-int consume_data_type();
-int is_control_flow();
-int is_data_type();
-void expect_next(char *op);
-int expect_num_next();
-void expect_ident_next();
+int consume_cntrl_nxt();
+int consume_cntrl();
+int get_cntrl_id();
+int get_d_type_id();
+int consume_d_type_nxt();
+int consume_d_type();
+int is_cntrl();
+int is_d_type();
+void expect_nxt(char *op);
+int expect_num_nxt();
+void expect_ident_nxt();
 bool at_eof();
 
 ////////////////////////////////////////////////////////////////////////////
@@ -148,7 +148,6 @@ struct LVar {
 	Type *type;
 };
 
-// extern LVar *locals[100];
 extern LVar *lvar_list;
 
 typedef struct Node Node;
@@ -211,14 +210,10 @@ struct Function {
 	LVar *local;
 };
 
-extern Function *now_func;
-extern Function *code;
-
 void program();
 
 ////////////////////////////////////////////////////////////////////////////
 // codegen.c
 ////////////////////////////////////////////////////////////////////////////
 
-void gen(Node *node);
 void func_gen(Function *func);

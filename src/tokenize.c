@@ -33,27 +33,27 @@ bool consume(char *op) {
 	return true;
 }
 
-bool consume_next(char *op) {
+bool consume_nxt(char *op) {
 	if (strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) return false;
-	token = token->next;
+	next();
 	return true;
 }
 
-void expect_next(char *op) {
+void expect_nxt(char *op) {
 	if (strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) 
 		error_at(token->str, "not '%s' -> '%s'(expect)", op, token->str);
-	token = token->next;
+	next();
 }
 
-int expect_num_next() {
+int expect_num_nxt() {
 	if (token->kind != TK_NUM) error_at(token->str, "not number\n");
 	int res = token->val;
-	token = token->next;
+	next();
 	return res;
 }
 
-void expect_ident_next() {
-	if (token->kind == TK_IDENT) token = token->next;
+void expect_ident_nxt() {
+	if (token->kind == TK_IDENT) next();
 	else error_at(token->str, "not ident\n");
 }
 
@@ -61,33 +61,33 @@ bool is_ident() {
 	return token->kind == TK_IDENT;
 }
 
-bool consume_ident() {
-	return token->kind == TK_IDENT;
-}
+// bool consume_ident() {
+// 	return token->kind == TK_IDENT;
+// }
 
-int consume_control_flow_next() {
-	int res = is_control_flow(token->str);
+int consume_cntrl_nxt() {
+	int res = is_cntrl(token->str);
 	if (res == 0) return 0;
-	token = token->next;
+	next();
 	return res;
 }
 
-int consume_control_flow() {
-	return is_control_flow(token->str);
+int consume_cntrl() {
+	return is_cntrl(token->str);
 }
 
-int consume_data_type_next() {
-	int res = is_data_type(token->str);
+int consume_d_type_nxt() {
+	int res = is_d_type(token->str);
 	if (res == 0) return 0;
-	token = token->next;
+	next();
 	return res;
 }
 
-int consume_data_type() {
-	return is_data_type(token->str);
+int consume_d_type() {
+	return is_d_type(token->str);
 }
 
-int get_control_id() {
+int get_cntrl_id() {
 	for (int i = 0; i < control_flow_size; i++) {
 		if (memcmp(token->str, control_flow[i], control_flow_len[i]) == 0) {
 			return i;
@@ -96,7 +96,7 @@ int get_control_id() {
 	return -1;
 }
 
-int get_type_id() {
+int get_d_type_id() {
 	for (int i = 0; i < data_type_size; i++) {
 		if (memcmp(token->str, data_type[i], data_type_len[i]) == 0) {
 			return i;
@@ -122,7 +122,7 @@ int is_single_punct(char *p) {
 	return 0;
 }
 
-int is_control_flow(char *p) {
+int is_cntrl(char *p) {
 	for (int i = 0; i < control_flow_size; i++) {
 		if (memcmp(p, control_flow[i], control_flow_len[i]) == 0 &&
 			!is_alnum(p[control_flow_len[i]])
@@ -133,7 +133,7 @@ int is_control_flow(char *p) {
 	return 0;
 }
 
-int is_data_type(char *p) {
+int is_d_type(char *p) {
 	for (int i = 0; i < data_type_size; i++) {
 		if (memcmp(p, data_type[i], data_type_len[i]) == 0 &&
 			!is_alnum(p[data_type_len[i]])
@@ -145,9 +145,9 @@ int is_data_type(char *p) {
 }
 
 int is_reserved(char *p) {
-	int res = is_control_flow(p);
+	int res = is_cntrl(p);
 	if (res) return res;
-	res = is_data_type(p);
+	res = is_d_type(p);
 	if (res) return res;
 	res = is_multi_punct(p);
 	if (res) return res;

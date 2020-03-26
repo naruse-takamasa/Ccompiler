@@ -70,14 +70,12 @@ Node *new_node_lvar_declaration(Token *tok) {
 }
 
 int add_lvar(Token *tok) {
-	fprintf(stderr, "add lvar : %s\n", tok->str);
 	LVar *lvar = find_lvar(tok);
 	if (lvar) error_at(tok->str, "変数名がかぶってます(add_lvar)\n");
 	lvar = calloc(1, sizeof(LVar));
 	lvar->name = tok->str;
 	lvar->len = tok->len;
 	lvar->offset = lvar_list->offset + 8;
-	fprintf(stderr, "offset : %d\n", lvar->offset);
 	lvar->next = lvar_list;
 	lvar_list = lvar;
 	return lvar->offset;
@@ -105,24 +103,24 @@ Node *expr();
 Node *unary();
 
 Node *primary() {
-	if (consume_next("(")) {
+	if (consume_nxt("(")) {
 		Node *node = expr();
-		expect_next(")");
+		expect_nxt(")");
 		return node;
 	}
 	if (is_ident()) {
 		Token *now = token;
-		expect_ident_next();
-		if (consume_next("(")) {
+		expect_ident_nxt();
+		if (consume_nxt("(")) {
 			Node *node = calloc(1, sizeof(Node));
 			node->kind = ND_FUNCALL;
 			node->funcname = strndup(now->str, now->len);
 			Node *now = node;
-			while (!consume_next(")")) {
+			while (!consume_nxt(")")) {
 				Node *arg = expr();
 				now->next = arg;
 				now = arg;
-				consume_next(",");
+				consume_nxt(",");
 			}
 			now->next = NULL;
 			return node;
@@ -131,21 +129,21 @@ Node *primary() {
 		return node;
 	}
 	// マジで????
-	if (token->kind == TK_NUM) return new_node_set_num(expect_num_next());
+	if (token->kind == TK_NUM) return new_node_set_num(expect_num_nxt());
 	return unary();
 }
 
 Node *unary() {
-	if (consume_next("+")) {
+	if (consume_nxt("+")) {
 		Node *node = primary();
 		return node;
-	} else if (consume_next("-")) {
+	} else if (consume_nxt("-")) {
 		Node *node = new_node_LR(ND_SUB, new_node_set_num(0), primary());
 		return node;
-	} else if (consume_next("*")) {
+	} else if (consume_nxt("*")) {
 		Node *node = new_node_LR(ND_DEREF, unary(), NULL);
 		return node;
-	} else if (consume_next("&")) {
+	} else if (consume_nxt("&")) {
 		Node *node = new_node_LR(ND_ADDR, unary(), NULL);
 		return node;
 	} else {
@@ -156,8 +154,8 @@ Node *unary() {
 Node *mul() {
 	Node *node = unary();
 	for (;;) {
-		if (consume_next("*")) node = new_node_LR(ND_MUL, node, unary());
-		else if (consume_next("/")) node = new_node_LR(ND_DIV, node, unary());
+		if (consume_nxt("*")) node = new_node_LR(ND_MUL, node, unary());
+		else if (consume_nxt("/")) node = new_node_LR(ND_DIV, node, unary());
 		else {
 			return node;
 		}
@@ -167,10 +165,10 @@ Node *mul() {
 Node *add() {
 	Node *node = mul();
 	for (;;) {
-		if (consume_next("+")) {
+		if (consume_nxt("+")) {
 			node = new_node_LR(ND_ADD, node, mul());
 		}
-		else if (consume_next("-")) node = new_node_LR(ND_SUB, node, mul());
+		else if (consume_nxt("-")) node = new_node_LR(ND_SUB, node, mul());
 		else return node;
 	}
 }
@@ -178,10 +176,10 @@ Node *add() {
 Node *relational() {
 	Node *node = add();
 	for (;;) {
-		if (consume_next(">=")) node = new_node_LR(ND_GE, node, add());
-		else if (consume_next("<=")) node = new_node_LR(ND_LE, node, add());
-		else if (consume_next(">")) node = new_node_LR(ND_GT, node, add());
-		else if (consume_next("<")) node = new_node_LR(ND_LT, node, add());
+		if (consume_nxt(">=")) node = new_node_LR(ND_GE, node, add());
+		else if (consume_nxt("<=")) node = new_node_LR(ND_LE, node, add());
+		else if (consume_nxt(">")) node = new_node_LR(ND_GT, node, add());
+		else if (consume_nxt("<")) node = new_node_LR(ND_LT, node, add());
 		else return node;
 	}
 }
@@ -189,15 +187,15 @@ Node *relational() {
 Node *equality() {
 	Node *node = relational();
 	for(;;) {
-		if (consume_next("==")) node = new_node_LR(ND_EQ, node, relational());
-		else if (consume_next("!=")) node = new_node_LR(ND_NEQ, node, relational());
+		if (consume_nxt("==")) node = new_node_LR(ND_EQ, node, relational());
+		else if (consume_nxt("!=")) node = new_node_LR(ND_NEQ, node, relational());
 		return node;
 	}
 }
 
 Node *assign() {
 	Node *node = equality();
-	if (consume_next("=")) {
+	if (consume_nxt("=")) {
 		node = new_node_LR(ND_ASSIGN, node, assign());
 	}
 	return node;
@@ -210,8 +208,8 @@ Node *expr() {
 
 // TODO:
 Node *declaration() {
-	if (consume_data_type_next() == 0) return NULL;
-	int type_id = get_type_id();
+	if (consume_d_type_nxt() == 0) return NULL;
+	int type_id = get_d_type_id();
 	Node *node = calloc(1, sizeof(Node));
 	switch (type_id)
 	{
@@ -222,7 +220,7 @@ Node *declaration() {
 		break;
 	}
 	bool is_ptr = false;
-	while (consume_next("*")) {
+	while (consume_nxt("*")) {
 		is_ptr = true;
 		Type *now_type = calloc(1, sizeof(Type));
 		now_type->ty = PTR;
@@ -230,66 +228,66 @@ Node *declaration() {
 		node->type = now_type;
 	}
 	node->offset = add_lvar(token);
-	expect_ident_next();
-	if (consume_next(";")) {
+	expect_ident_nxt();
+	if (consume_nxt(";")) {
 		node->kind = ND_NULL;
 		return node;
 	}
 	node->kind = ND_LVAR;
-	consume_next("=");
+	consume_nxt("=");
 	if (is_ptr) {
 		Node *r = equality();
-		consume_next(";");
+		consume_nxt(";");
 		return new_node_LR(ND_DEREF_DEC, node, r);
 	} else {
 		Node *r = equality();
-		consume_next(";");
+		consume_nxt(";");
 		return new_node_LR(ND_ASSIGN, node, r);
 	}
 }
 
 Node *stmt() {
 	Node *node;
-	if (consume_control_flow()) {
-		int control_id = get_control_id();
+	if (consume_cntrl()) {
+		int control_id = get_cntrl_id();
 		next();
 		switch (control_id)
 		{
 		case 0: // return
 			node = new_node_LR(ND_RETURN, expr(), NULL);
-			expect_next(";");
+			expect_nxt(";");
 			break;
 		case 1: // if
-			expect_next("(");
+			expect_nxt("(");
 			node = new_node_if(expr(), NULL, NULL);
-			expect_next(")");
+			expect_nxt(")");
 			node->then_stmt = stmt();
 			int next_control_id = -1;
-			if (consume_control_flow()) next_control_id = get_control_id();
+			if (consume_cntrl()) next_control_id = get_cntrl_id();
 			if (next_control_id == 2) {
 				node->else_stmt = stmt();
 			}
 			break;
 		case 3: // while
-			expect_next("(");
+			expect_nxt("(");
 			node = new_node_LR(ND_WHILE, expr(), NULL);
-			expect_next(")");
+			expect_nxt(")");
 			node->rhs = stmt();
 			break;
 		case 4: // for
 			node = new_node_for(NULL, NULL, NULL);
-			expect_next("(");
-			if (!consume_next(";")) {
+			expect_nxt("(");
+			if (!consume_nxt(";")) {
 				node->init = expr();
-				expect_next(";");
+				expect_nxt(";");
 			}
-			if (!consume_next(";")) {
+			if (!consume_nxt(";")) {
 				node->condition = expr();
-				expect_next(";");
+				expect_nxt(";");
 			}
-			if (!consume_next(")")) {
+			if (!consume_nxt(")")) {
 				node->loop = expr();
-				expect_next(")");
+				expect_nxt(")");
 			}
 			node->then_stmt = stmt();
 			break;
@@ -301,16 +299,16 @@ Node *stmt() {
 	// 変数宣言
 	Node *dec = declaration();
 	if (dec != NULL) return dec;
-	if (consume_next(";")) {
+	if (consume_nxt(";")) {
 		// 何も式が書かれなかった場合
 		node = NULL;
 		return node;
 	}
-	if (consume_next("{")) {
+	if (consume_nxt("{")) {
 		// ブロック
 		node = new_node_LR(ND_BLOCK, NULL, NULL);
 		Node *now = node;
-		while (!consume_next("}")) {
+		while (!consume_nxt("}")) {
 			Node *statement = stmt();
 			now->next = statement;
 			now = statement;
@@ -320,14 +318,14 @@ Node *stmt() {
 	}
 	// ただの式
 	node = expr();
-	expect_next(";");
+	expect_nxt(";");
 	return node;
 }
 
 Function *func_def() {
 	Function *func = calloc(1, sizeof(Function));
 
-	if (consume_data_type(token) == 0) error_at(token->str, "型を宣言してください\n");
+	if (consume_d_type(token) == 0) error_at(token->str, "型を宣言してください\n");
 	next();
 
 	if (!is_ident()) error_at(token->str, "関数名を宣言してください\n");
@@ -335,26 +333,26 @@ Function *func_def() {
 	next();
 
 	// 引数を解析
-	expect_next("(");
+	expect_nxt("(");
 	Node **now_arg = &(func->next_arg);
 	int arg_cnt = 0;
-	while (!consume_next(")")) {
-		consume_data_type_next();
-		consume_ident();
+	while (!consume_nxt(")")) {
+		consume_d_type_nxt();
+		is_ident();
 		Node *arg = new_node_lvar_declaration(token);
 		arg->kind = ND_ARG;
 		*now_arg = arg;
 		now_arg = &(arg->next_arg);
 		arg_cnt++;
 		next();
-		consume_next(",");
+		consume_nxt(",");
 	}
 	func->arg_count = arg_cnt;
 
 	// 関数本体の解析
-	expect_next("{");
+	expect_nxt("{");
 	Node **now = &(func->next_stmt);
-	while (!consume_next("}")) {
+	while (!consume_nxt("}")) {
 		Node *statement = stmt();
 		*now = statement;
 		now = &(statement->next_stmt);
