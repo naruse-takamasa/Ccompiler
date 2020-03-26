@@ -10,67 +10,116 @@
  */
 #include "SverigeCC.h"
 
-char reserved[][10] = {"+", "-", "*", "/", "(", ")", "==", "!=", ">=", "<=", ">", "<", "=", ";", "{", "}", ",", "&"};
-int reserved_len[] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1};
-const int reserved_size = 18;
+char multi_punct[][10] = {"==", "!=", ">=", "<="};
+int multi_punct_len[] = {2, 2, 2, 2};
+int multi_punct_size = 4;
 
-char control_flow[][10] = {"return", "if", "else", "while", "for", "int"};
-int control_flow_len[] = {6, 2, 4, 5, 3, 3};
-const int control_flow_size = 6;
+char control_flow[][10] = {"return", "if", "else", "while", "for"};
+int control_flow_len[] = {6, 2, 4, 5, 3};
+const int control_flow_size = 5;
+
+char data_type[][10] = {"int"};
+int data_type_len[] = {3};
+const int data_type_size = 1;
 
 Token *token;
 
+void next() {
+	token = token->next;
+}
+
 bool consume(char *op) {
-	if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) 
-		return false;
+	if (strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) return false;
+	return true;
+}
+
+bool consume_next(char *op) {
+	if (strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) return false;
 	token = token->next;
 	return true;
 }
 
-bool consume_ident() {
-	if (token->kind != TK_IDENT) return false;
-	token = token->next;
-	return token;
-}
-
-void expect(char *op) {
-	if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) 
+void expect_next(char *op) {
+	if (strlen(op) != token->len || memcmp(op, token->str, token->len) != 0) 
 		error_at(token->str, "not '%s' -> '%s'(expect)", op, token->str);
 	token = token->next;
 }
 
-int expect_num() {
+int expect_num_next() {
 	if (token->kind != TK_NUM) error_at(token->str, "not number\n");
 	int res = token->val;
 	token = token->next;
 	return res;
 }
 
-void expect_ident() {
+void expect_ident_next() {
 	if (token->kind == TK_IDENT) token = token->next;
 	else error_at(token->str, "not ident\n");
-}
-
-bool is_alnum(char c) {
-	return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || (c == '_');
 }
 
 bool is_ident() {
 	return token->kind == TK_IDENT;
 }
 
-int consume_control_flow() {
-	if (token->kind != TK_CONTROL_FLOW) return -1;
-	int res = token->val;
+bool consume_ident() {
+	return token->kind == TK_IDENT;
+}
+
+int consume_control_flow_next() {
+	int res = is_control_flow(token->str);
+	if (res == 0) return 0;
 	token = token->next;
 	return res;
 }
 
-int is_reserved(char *p) {
-	for (int i = 0; i < reserved_size; i++) {
-		if (memcmp(p, reserved[i], reserved_len[i]) == 0) return i;
+int consume_control_flow() {
+	return is_control_flow(token->str);
+}
+
+int consume_data_type_next() {
+	int res = is_data_type(token->str);
+	if (res == 0) return 0;
+	token = token->next;
+	return res;
+}
+
+int consume_data_type() {
+	return is_data_type(token->str);
+}
+
+int get_control_id() {
+	for (int i = 0; i < control_flow_size; i++) {
+		if (memcmp(token->str, control_flow[i], control_flow_len[i]) == 0) {
+			return i;
+		}
 	}
 	return -1;
+}
+
+int get_type_id() {
+	for (int i = 0; i < data_type_size; i++) {
+		if (memcmp(token->str, data_type[i], data_type_len[i]) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+bool is_alnum(char c) {
+	return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') || (c == '_');
+}
+
+int is_multi_punct(char *p) {
+	for (int i = 0; i < multi_punct_size; i++) {
+		if (memcmp(p, multi_punct[i], multi_punct_len[i]) == 0) return multi_punct_len[i];
+	}
+	return 0;
+}
+
+int is_single_punct(char *p) {
+	if (memcmp(p, "_", 1) == 0) return 0;
+	if (ispunct(*p) != 0) return 1;
+	return 0;
 }
 
 int is_control_flow(char *p) {
@@ -78,21 +127,45 @@ int is_control_flow(char *p) {
 		if (memcmp(p, control_flow[i], control_flow_len[i]) == 0 &&
 			!is_alnum(p[control_flow_len[i]])
 		) {
-			return i;
+			return control_flow_len[i];
 		}
 	}
-	return -1;
+	return 0;
+}
+
+int is_data_type(char *p) {
+	for (int i = 0; i < data_type_size; i++) {
+		if (memcmp(p, data_type[i], data_type_len[i]) == 0 &&
+			!is_alnum(p[data_type_len[i]])
+		) {
+			return data_type_len[i];
+		}
+	}
+	return 0;
+}
+
+int is_reserved(char *p) {
+	int res = is_control_flow(p);
+	if (res) return res;
+	res = is_data_type(p);
+	if (res) return res;
+	res = is_multi_punct(p);
+	if (res) return res;
+	res = is_single_punct(p);
+	if (res) return res;
+	return 0;
 }
 
 bool at_eof() {
 	return token->kind == TK_EOF;
 }
 
-Token *new_token(TokenKind kind, Token *cur, char *str) {
+Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
 	Token *tok = calloc(1, sizeof(Token));
 	tok->kind = kind;
 	tok->str = str;
 	cur->next = tok;
+	tok->len = len;
 	return tok;
 }
 
@@ -101,38 +174,28 @@ Token *tokenize(char *p) {
 	head.next = NULL;
 	Token *cur = &head;
 	while (*p) {
-		// fprintf(stderr, "now tokenize : %s \n", p);
 		// 空白
 		if (isspace(*p)) {
 			p++;
 			continue;
 		}
 		// 記号
-		int reserved_id = is_reserved(p);
-		if (reserved_id != -1) {
-			cur = new_token(TK_RESERVED, cur, p);
-			cur->len = reserved_len[reserved_id];
-			p += reserved_len[reserved_id];
+		int reserved_len = is_reserved(p);
+		if (reserved_len) {
+			cur = new_token(TK_RESERVED, cur, p, reserved_len);
+			cur->len = reserved_len;
+			p += reserved_len;
 			continue;
 		}
 		// 数値
 		if (isdigit(*p)) {
-			cur = new_token(TK_NUM, cur, p);
+			cur = new_token(TK_NUM, cur, p, -1);
 			cur->val = strtol(p, &p, 10);
-			continue;
-		}
-		// 制御構文
-		int control_id = is_control_flow(p);
-		if (control_id != -1) {
-			cur = new_token(TK_CONTROL_FLOW, cur, p);
-			cur->len = control_flow_len[control_id];
-			p += control_flow_len[control_id];
-			cur->val = control_id;
 			continue;
 		}
 		// 変数か関数
 		if (is_alnum(*p)) {
-			cur = new_token(TK_IDENT, cur, p);
+			cur = new_token(TK_IDENT, cur, p, -1);
 			int idx = 0;
 			while (is_alnum(p[idx])) {
 				idx++;
@@ -143,16 +206,6 @@ Token *tokenize(char *p) {
 		}
 		error_at(token->str, "can't tokenize\n");
 	}
-	new_token(TK_EOF, cur, p);
+	new_token(TK_EOF, cur, p, 0);
 	return head.next;
-}
-
-LVar *find_lvar(Token *tok) {
-	fprintf(stderr, "find_lvar\n");
-	for (LVar *now = now_func->local; now; now = now->next) {
-		if (tok->len == now->len && memcmp(tok->str, now->name, tok->len) == 0) {
-			return now;
-		}
-	}
-	return NULL;
 }

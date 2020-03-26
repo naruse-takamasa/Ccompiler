@@ -10,10 +10,18 @@
  */
 #include "SverigeCC.h"
 
-Function *code;
-Function *now_func;
+LVar *lvar_list;
 
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+LVar *find_lvar(Token *tok) {
+	for (LVar *now = lvar_list; now; now = now->next) {
+		if (tok->len == now->len && memcmp(tok->str, now->name, tok->len) == 0) {
+			return now;
+		}
+	}
+	return NULL;
+}
+
+Node *new_node_LR(NodeKind kind, Node *lhs, Node *rhs) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = kind;
 	node->lhs = lhs;
@@ -21,7 +29,7 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
 	return node;
 }
 
-Node *new_node_num(int val) {
+Node *new_node_set_num(int val) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_NUM;
 	node->val = val;
@@ -38,24 +46,41 @@ Node *new_node_lvar(Token *tok) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
 	LVar *lvar = find_lvar(tok);
-	fprintf(stderr, "find\n");
 	if (lvar) {
 		node->offset = lvar->offset;
 	} else {
-		// TODO:
-		// error("その変数は知らん\n");
-		lvar = calloc(1, sizeof(LVar));
-		lvar->name = tok->str;
-		lvar->len = tok->len;
-		// lvar->offset = locals[func_id]->offset + 8;
-		// lvar->next = locals[func_id];
-		// locals[func_id] = lvar;
-		lvar->offset = now_func->local->offset + 8;
-		lvar->next = now_func->local;
-		now_func->local = lvar;
-		node->offset = lvar->offset;
+		error("%sは知らん\n", tok->str);
 	}
 	return node;
+}
+
+Node *new_node_lvar_declaration(Token *tok) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_LVAR;
+	LVar *lvar = find_lvar(tok);
+	if (lvar) error_at(tok->str, "変数名がかぶってます\n");
+	lvar = calloc(1, sizeof(LVar));
+	lvar->name = tok->str;
+	lvar->len = tok->len;
+	lvar->offset = lvar_list->offset + 8;
+	lvar->next = lvar_list;
+	lvar_list = lvar;
+	node->offset = lvar->offset;
+	return node;
+}
+
+int add_lvar(Token *tok) {
+	fprintf(stderr, "add lvar : %s\n", tok->str);
+	LVar *lvar = find_lvar(tok);
+	if (lvar) error_at(tok->str, "変数名がかぶってます(add_lvar)\n");
+	lvar = calloc(1, sizeof(LVar));
+	lvar->name = tok->str;
+	lvar->len = tok->len;
+	lvar->offset = lvar_list->offset + 8;
+	fprintf(stderr, "offset : %d\n", lvar->offset);
+	lvar->next = lvar_list;
+	lvar_list = lvar;
+	return lvar->offset;
 }
 
 Node *new_node_if(Node *condition, Node *then_stmt, Node *else_stmt) {
@@ -80,24 +105,24 @@ Node *expr();
 Node *unary();
 
 Node *primary() {
-	if (consume("(")) {
+	if (consume_next("(")) {
 		Node *node = expr();
-		expect(")");
+		expect_next(")");
 		return node;
 	}
-	if (token->kind == TK_IDENT) {
+	if (is_ident()) {
 		Token *now = token;
-		expect_ident();
-		if (consume("(")) {
+		expect_ident_next();
+		if (consume_next("(")) {
 			Node *node = calloc(1, sizeof(Node));
 			node->kind = ND_FUNCALL;
 			node->funcname = strndup(now->str, now->len);
 			Node *now = node;
-			while (!consume(")")) {
+			while (!consume_next(")")) {
 				Node *arg = expr();
 				now->next = arg;
 				now = arg;
-				consume(",");
+				consume_next(",");
 			}
 			now->next = NULL;
 			return node;
@@ -106,22 +131,22 @@ Node *primary() {
 		return node;
 	}
 	// マジで????
-	if (token->kind == TK_NUM) return new_node_num(expect_num());
+	if (token->kind == TK_NUM) return new_node_set_num(expect_num_next());
 	return unary();
 }
 
 Node *unary() {
-	if (consume("+")) {
+	if (consume_next("+")) {
 		Node *node = primary();
 		return node;
-	} else if (consume("-")) {
-		Node *node = new_node(ND_SUB, new_node_num(0), primary());
+	} else if (consume_next("-")) {
+		Node *node = new_node_LR(ND_SUB, new_node_set_num(0), primary());
 		return node;
-	} else if (consume("*")) {
-		Node *node = new_node(ND_DEREF, unary(), NULL);
+	} else if (consume_next("*")) {
+		Node *node = new_node_LR(ND_DEREF, unary(), NULL);
 		return node;
-	} else if (consume("&")) {
-		Node *node = new_node(ND_ADDR, unary(), NULL);
+	} else if (consume_next("&")) {
+		Node *node = new_node_LR(ND_ADDR, unary(), NULL);
 		return node;
 	} else {
 		return primary();
@@ -131,8 +156,8 @@ Node *unary() {
 Node *mul() {
 	Node *node = unary();
 	for (;;) {
-		if (consume("*")) node = new_node(ND_MUL, node, unary());
-		else if (consume("/")) node = new_node(ND_DIV, node, unary());
+		if (consume_next("*")) node = new_node_LR(ND_MUL, node, unary());
+		else if (consume_next("/")) node = new_node_LR(ND_DIV, node, unary());
 		else {
 			return node;
 		}
@@ -142,10 +167,10 @@ Node *mul() {
 Node *add() {
 	Node *node = mul();
 	for (;;) {
-		if (consume("+")) {
-			node = new_node(ND_ADD, node, mul());
+		if (consume_next("+")) {
+			node = new_node_LR(ND_ADD, node, mul());
 		}
-		else if (consume("-")) node = new_node(ND_SUB, node, mul());
+		else if (consume_next("-")) node = new_node_LR(ND_SUB, node, mul());
 		else return node;
 	}
 }
@@ -153,10 +178,10 @@ Node *add() {
 Node *relational() {
 	Node *node = add();
 	for (;;) {
-		if (consume(">=")) node = new_node(ND_GE, node, add());
-		else if (consume("<=")) node = new_node(ND_LE, node, add());
-		else if (consume(">")) node = new_node(ND_GT, node, add());
-		else if (consume("<")) node = new_node(ND_LT, node, add());
+		if (consume_next(">=")) node = new_node_LR(ND_GE, node, add());
+		else if (consume_next("<=")) node = new_node_LR(ND_LE, node, add());
+		else if (consume_next(">")) node = new_node_LR(ND_GT, node, add());
+		else if (consume_next("<")) node = new_node_LR(ND_LT, node, add());
 		else return node;
 	}
 }
@@ -164,16 +189,16 @@ Node *relational() {
 Node *equality() {
 	Node *node = relational();
 	for(;;) {
-		if (consume("==")) node = new_node(ND_EQ, node, relational());
-		else if (consume("!=")) node = new_node(ND_NEQ, node, relational());
+		if (consume_next("==")) node = new_node_LR(ND_EQ, node, relational());
+		else if (consume_next("!=")) node = new_node_LR(ND_NEQ, node, relational());
 		return node;
 	}
 }
 
 Node *assign() {
 	Node *node = equality();
-	if (consume("=")) {
-		node = new_node(ND_ASSIGN, node, assign());
+	if (consume_next("=")) {
+		node = new_node_LR(ND_ASSIGN, node, assign());
 	}
 	return node;
 }
@@ -183,47 +208,88 @@ Node *expr() {
 	return node;
 }
 
+// TODO:
+Node *declaration() {
+	if (consume_data_type_next() == 0) return NULL;
+	int type_id = get_type_id();
+	Node *node = calloc(1, sizeof(Node));
+	switch (type_id)
+	{
+	case 0:
+		node->type->ty = INT;
+		break;
+	default:
+		break;
+	}
+	bool is_ptr = false;
+	while (consume_next("*")) {
+		is_ptr = true;
+		Type *now_type = calloc(1, sizeof(Type));
+		now_type->ty = PTR;
+		now_type->ptr_to = node->type;
+		node->type = now_type;
+	}
+	node->offset = add_lvar(token);
+	expect_ident_next();
+	if (consume_next(";")) {
+		node->kind = ND_NULL;
+		return node;
+	}
+	node->kind = ND_LVAR;
+	consume_next("=");
+	if (is_ptr) {
+		Node *r = equality();
+		consume_next(";");
+		return new_node_LR(ND_DEREF_DEC, node, r);
+	} else {
+		Node *r = equality();
+		consume_next(";");
+		return new_node_LR(ND_ASSIGN, node, r);
+	}
+}
+
 Node *stmt() {
 	Node *node;
-	int control_id = consume_control_flow();
-	if (control_id != -1) {
+	if (consume_control_flow()) {
+		int control_id = get_control_id();
+		next();
 		switch (control_id)
 		{
 		case 0: // return
-			// fprintf(stderr, "%s\n", token->str);
-			node = new_node(ND_RETURN, expr(), NULL);
-			expect(";");
+			node = new_node_LR(ND_RETURN, expr(), NULL);
+			expect_next(";");
 			break;
 		case 1: // if
-			expect("(");
+			expect_next("(");
 			node = new_node_if(expr(), NULL, NULL);
-			expect(")");
+			expect_next(")");
 			node->then_stmt = stmt();
-			int next_control_id = is_control_flow();
+			int next_control_id = -1;
+			if (consume_control_flow()) next_control_id = get_control_id();
 			if (next_control_id == 2) {
 				node->else_stmt = stmt();
 			}
 			break;
 		case 3: // while
-			expect("(");
-			node = new_node(ND_WHILE, expr(), NULL);
-			expect(")");
+			expect_next("(");
+			node = new_node_LR(ND_WHILE, expr(), NULL);
+			expect_next(")");
 			node->rhs = stmt();
 			break;
 		case 4: // for
 			node = new_node_for(NULL, NULL, NULL);
-			expect("(");
-			if (!consume(";")) {
+			expect_next("(");
+			if (!consume_next(";")) {
 				node->init = expr();
-				expect(";");
+				expect_next(";");
 			}
-			if (!consume(";")) {
+			if (!consume_next(";")) {
 				node->condition = expr();
-				expect(";");
+				expect_next(";");
 			}
-			if (!consume(")")) {
+			if (!consume_next(")")) {
 				node->loop = expr();
-				expect(")");
+				expect_next(")");
 			}
 			node->then_stmt = stmt();
 			break;
@@ -232,16 +298,19 @@ Node *stmt() {
 		}
 		return node;
 	}
-	if (consume(";")) {
+	// 変数宣言
+	Node *dec = declaration();
+	if (dec != NULL) return dec;
+	if (consume_next(";")) {
 		// 何も式が書かれなかった場合
 		node = NULL;
 		return node;
 	}
-	if (consume("{")) {
+	if (consume_next("{")) {
 		// ブロック
-		node = new_node(ND_BLOCK, NULL, NULL);
+		node = new_node_LR(ND_BLOCK, NULL, NULL);
 		Node *now = node;
-		while (!consume("}")) {
+		while (!consume_next("}")) {
 			Node *statement = stmt();
 			now->next = statement;
 			now = statement;
@@ -251,63 +320,52 @@ Node *stmt() {
 	}
 	// ただの式
 	node = expr();
-	expect(";");
+	expect_next(";");
 	return node;
 }
 
-void func_def() {
+Function *func_def() {
+	Function *func = calloc(1, sizeof(Function));
+
+	if (consume_data_type(token) == 0) error_at(token->str, "型を宣言してください\n");
+	next();
+
 	if (!is_ident()) error_at(token->str, "関数名を宣言してください\n");
-	now_func = calloc(1, sizeof(Function));
-
-	now_func->name = strndup(token->str, token->len);
-
-	// この関数内でのローカル変数の集合の初期化
-	now_func->local = calloc(1, sizeof(LVar));
-	now_func->local->len = 0;
-	now_func->local->name = "";
-	now_func->local->next = NULL;
-	now_func->local->offset = 0;
-
-	expect_ident();
+	func->name = strndup(token->str, token->len);
+	next();
 
 	// 引数を解析
-	expect("(");
-	Node **now_arg = &(now_func->next_arg);
+	expect_next("(");
+	Node **now_arg = &(func->next_arg);
 	int arg_cnt = 0;
-	while (!consume(")")) {
-		Node *arg = new_node_lvar(token);
+	while (!consume_next(")")) {
+		consume_data_type_next();
+		consume_ident();
+		Node *arg = new_node_lvar_declaration(token);
 		arg->kind = ND_ARG;
 		*now_arg = arg;
 		now_arg = &(arg->next_arg);
 		arg_cnt++;
-		consume_ident();
-		consume(",");
+		next();
+		consume_next(",");
 	}
-	now_func->arg_count = arg_cnt;
+	func->arg_count = arg_cnt;
 
 	// 関数本体の解析
-	expect("{");
-	Node **now = &(now_func->next_stmt);
-	while (!consume("}")) {
+	expect_next("{");
+	Node **now = &(func->next_stmt);
+	while (!consume_next("}")) {
 		Node *statement = stmt();
 		*now = statement;
 		now = &(statement->next_stmt);
 	}
-
-	now_func->total_offset = now_func->local->offset;
+	func->total_offset = lvar_list->offset;
+	return func;
 }
 
 void program() {
-	bool first = true;
-	Function **now;
 	while (!at_eof()) {
-		func_def();
-		if (first) {
-			code = now_func;
-			first = false;
-		} else {
-			*now = now_func;
-		}
-		now = &(now_func->next);
+		lvar_list = calloc(1, sizeof(LVar));
+		func_gen(func_def());
 	}
 }

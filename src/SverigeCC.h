@@ -24,19 +24,17 @@ void error(char *fmt, ...);
 // tokenize.c
 ////////////////////////////////////////////////////////////////////////////
 
-extern char reserved[][10];
-extern int reserved_len[];
-extern const int reserved_size;
-
 /**
  * @brief トークンの種類の定義
  * 
  */
 typedef enum {
 	// 制御構文
-	TK_CONTROL_FLOW,
+	// TK_CONTROL_FLOW,
 	// 文字列(変数名とか関数名とか)
 	TK_IDENT,
+	// 基本データ型
+	// TK_DATA_TYPE,
 	// 数値
 	TK_NUM,
 	// 記号
@@ -66,27 +64,23 @@ struct Token {
 extern Token *token;
 
 Token *tokenize(char *p);
+void next();
 bool consume(char *op);
+bool consume_next(char *op);
 bool consume_ident();
 bool is_ident();
+int consume_control_flow_next();
 int consume_control_flow();
+int get_control_id();
+int get_type_id();
+int consume_data_type_next();
+int consume_data_type();
 int is_control_flow();
-void expect(char *op);
-int expect_num();
-void expect_ident();
+int is_data_type();
+void expect_next(char *op);
+int expect_num_next();
+void expect_ident_next();
 bool at_eof();
-
-typedef struct LVar LVar;
-
-struct LVar {
-	LVar *next;
-	char *name;
-	int len;
-	int offset;
-};
-
-// extern LVar *locals[100];
-LVar *find_lvar(Token *tok);
 
 ////////////////////////////////////////////////////////////////////////////
 // parse.c
@@ -128,10 +122,36 @@ typedef enum {
 	ND_ADDR,
 	// ポインタ
 	ND_DEREF,
+	// int
+	ND_INT,
+	// 変数宣言のみ
+	ND_NULL,
+	// ポインタの宣言
+	ND_DEREF_DEC,
 } NodeKind;
 
+typedef struct Type Type;
+
+struct Type {
+	enum{INT, PTR} ty;
+	struct Type *ptr_to;
+};
+
+
+typedef struct LVar LVar;
+
+struct LVar {
+	LVar *next;
+	char *name;
+	int len;
+	int offset;
+	Type *type;
+};
+
+// extern LVar *locals[100];
+extern LVar *lvar_list;
+
 typedef struct Node Node;
-extern int func_arg_count[100];
 
 /**
  * @brief 抽象構文木の頂点の定義
@@ -145,11 +165,17 @@ extern int func_arg_count[100];
  * 
  */
 struct Node {
+	// ノードの種類
 	NodeKind kind;
+	// 左の子のアドレス
 	Node *lhs;
+	// 右の子のアドレス
 	Node *rhs;
+	// 数値
 	int val;
+	// 変数だったときの、rbpからのオフセット
 	int offset;
+	Type *type;
 
 	// if
 	Node *condition;
@@ -163,7 +189,7 @@ struct Node {
 	// block
 	Node *next;
 
-	// function
+	// function call
 	char *funcname;
 	Node *next_stmt;
 	Node *next_arg;
@@ -171,6 +197,10 @@ struct Node {
 
 typedef struct Function Function;
 
+/**
+ * @brief 1つのfunction definitionをまとめてる
+ * 
+ */
 struct Function {
 	char *name;
 	int arg_count;

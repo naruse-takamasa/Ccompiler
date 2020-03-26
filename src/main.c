@@ -24,18 +24,19 @@ int main(int argc, char **argv) {
 
 	user_input = argv[1];
 	token = tokenize(user_input);
-	//   for (Token *now = token; now->kind != TK_EOF; now = now->next) {
-	// 	  fprintf(stderr, "%s, %d, %d\n", now->str, now->len, now->val);
-	//   }
+	  for (Token *now = token; now->kind != TK_EOF; now = now->next) {
+		  fprintf(stderr, "%s, %d, %d\n", now->str, now->len, now->val);
+	  }
 	fprintf(stderr, "tokenize OK\n");
 
-	program();
-	fprintf(stderr, "program OK\n");
+	// program();
+	// fprintf(stderr, "program OK\n");
 
 	printf(".intel_syntax noprefix\n");
 	printf(".global main\n");
-	for (Function *now = code; now; now = now->next) {
-		func_gen(now);
-	}
+	program();
+	// for (Function *now = code; now; now = now->next) {
+	// 	func_gen(now);
+	// }
 	return 0;
 }

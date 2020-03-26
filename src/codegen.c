@@ -10,21 +10,38 @@
  */
 #include "SverigeCC.h"
 
+char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+int Label_id = 0;
+int Total_offset;
+
+void load() {
+	printf("  pop rax\n");
+	printf("  mov rax, [rax]\n");
+	printf("  push rax\n");
+}
+
+void store() {
+	printf("  pop rdi\n");
+	printf("  pop rax\n");
+	printf("  mov [rax], rdi\n");
+	printf("  push rdi\n");
+}
 /**
  * @brief 変数のアドレスを調べて、その値をpushする
  * 
  * @param node 
  */
-void gen_lval(Node *node) {
-	if (node->kind == ND_DEREF) return gen(node->lhs);
+void addr_gen(Node *node) {
+	if (node->kind == ND_DEREF) {
+		gen(node->lhs);
+		return;
+	}
 	if (node->kind != ND_LVAR) error("代入の左辺値が変数ではありません\n");
 	printf("  mov rax, rbp\n");
-	printf("  sub rax, %d\n", node->offset);
+	printf("  sub rax, %d\n", Total_offset + 8);
+	printf("  add rax, %d\n", node->offset);
 	printf("  push rax\n");
 }
-
-char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-int Label_id = 0;
 
 void gen(Node *node) {
 	switch (node->kind)
@@ -33,18 +50,13 @@ void gen(Node *node) {
 		printf("  push %d\n", node->val);
 		return;
 	case ND_LVAR:
-		gen_lval(node);
-		printf("  pop rax\n");
-		printf("  mov rax, [rax]\n");
-		printf("  push rax\n");
+		addr_gen(node);
+		load();
 		return;
 	case ND_ASSIGN:
-		gen_lval(node->lhs);
+		addr_gen(node->lhs);
 		gen(node->rhs);
-		printf("  pop rdi\n");
-		printf("  pop rax\n");
-		printf("  mov [rax], rdi\n");
-		printf("  push rdi\n");
+		store();
 		return;
 	case ND_RETURN:
 		// returnされた結果はraxにある.
@@ -58,16 +70,16 @@ void gen(Node *node) {
 		gen(node->condition);
 		printf("  pop rax\n");
 		printf("  cmp rax, 0\n");
-		if (node->else_stmt == NULL) {
+		if (node->else_stmt) {
 			printf("  je .Lend%d\n", Label_id);
-			if (node->then_stmt != NULL) gen(node->then_stmt);
+			if (node->then_stmt) gen(node->then_stmt);
 			printf(".Lend%d:\n", Label_id);
 		} else {
 			printf("  je .Lelse%d\n", Label_id);
-			if (node->then_stmt != NULL) gen(node->then_stmt);
+			if (node->then_stmt) gen(node->then_stmt);
 			printf("  jmp .Lend%d\n", Label_id);
 			printf(".Lelse%d:\n", Label_id);
-			if (node->else_stmt != NULL) gen(node->else_stmt);
+			if (node->else_stmt) gen(node->else_stmt);
 			printf(".Lend%d:\n", Label_id);
 		}
 		Label_id++;
@@ -78,22 +90,22 @@ void gen(Node *node) {
 		printf("  pop rax\n");
 		printf("  cmp rax, 0\n");
 		printf("  je .Lend%d\n", Label_id);
-		if (node->rhs != NULL) gen(node->rhs);
+		if (node->rhs) gen(node->rhs);
 		printf("  jmp .Lbegin%d\n", Label_id);
 		printf(".Lend%d:\n", Label_id);
 		Label_id++;
 		return;
 	case ND_FOR:
-		if (node->init != NULL) gen(node->init);
+		if (node->init) gen(node->init);
 		printf(".Lbegin%d:\n", Label_id);
-		if (node->condition != NULL) {
+		if (node->condition) {
 			gen(node->condition);
 			printf("  pop rax\n");
 			printf("  cmp rax, 0\n");
 			printf("  je .Lend%d\n", Label_id);
 		}
-		if (node->then_stmt != NULL) gen(node->then_stmt);
-		if (node->loop != NULL) gen(node->loop);
+		if (node->then_stmt) gen(node->then_stmt);
+		if (node->loop) gen(node->loop);
 		printf("  jmp .Lbegin%d\n", Label_id);
 		printf(".Lend%d:\n", Label_id);
 		Label_id++;
@@ -138,13 +150,18 @@ void gen(Node *node) {
 		}
 		return;
 	case ND_ADDR:
-		gen_lval(node->lhs);
+		addr_gen(node->lhs);
 		return;
 	case ND_DEREF:
 		gen(node->lhs);
-		printf("  pop rax\n");
-		printf("  mov rax, [rax]\n");
-		printf("  push rax\n");
+		load();
+		return;
+	case ND_DEREF_DEC:
+		addr_gen(node->lhs);
+		gen(node->rhs);
+		store();
+		return;
+	case ND_NULL:
 		return;
 	default:
 		break;
@@ -218,15 +235,12 @@ void func_gen(Function *func) {
 	printf("  mov rbp, rsp\n");
 	printf("  sub rsp, %d\n", func->total_offset);
 
-	// 引数の値をローカル変数領域に移動
-	// for (int i = 0; i < func_arg_count[node->offset]; i++) {
-	// 	printf("  mov rax, rbp\n");
-	// 	printf("  sub rax, %d\n", (i + 1) * 8);
-	// 	printf("  mov [rax], %s\n", argreg[i]);
-	// }
+	Total_offset = func->total_offset;
+
 	for (int i = 0; i < func->arg_count; i++) {
 		printf("  mov rax, rbp\n");
-		printf("  sub rax, %d\n", (i + 1) * 8);
+		printf("  sub rax, %d\n", Total_offset);
+		printf("  add rax, %d\n", i * 8);
 		printf("  mov [rax], %s\n", argreg[i]);
 	}
 
