@@ -1,7 +1,7 @@
 /**
  * @file parse.c
  * @author Takamasa Naruse
- * @brief 抽象構文木の構築
+ * @brief construct abstract syntax tree
  * @version 0.1
  * @date 2020-03-21
  * 
@@ -54,21 +54,6 @@ Node *new_node_lvar(Token *tok) {
 	return node;
 }
 
-Node *new_node_lvar_declaration(Token *tok) {
-	Node *node = calloc(1, sizeof(Node));
-	node->kind = ND_LVAR;
-	LVar *lvar = find_lvar(tok);
-	if (lvar) error_at(tok->str, "変数名がかぶってます\n");
-	lvar = calloc(1, sizeof(LVar));
-	lvar->name = tok->str;
-	lvar->len = tok->len;
-	lvar->offset = lvar_list->offset + 8;
-	lvar->next = lvar_list;
-	lvar_list = lvar;
-	node->offset = lvar->offset;
-	return node;
-}
-
 int add_lvar(Token *tok) {
 	LVar *lvar = find_lvar(tok);
 	if (lvar) error_at(tok->str, "変数名がかぶってます(add_lvar)\n");
@@ -79,6 +64,13 @@ int add_lvar(Token *tok) {
 	lvar->next = lvar_list;
 	lvar_list = lvar;
 	return lvar->offset;
+}
+
+Node *new_node_lvar_dec(Token *tok) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_LVAR;
+	node->offset = add_lvar(tok);
+	return node;
 }
 
 Node *new_node_if(Node *condition, Node *then_stmt, Node *else_stmt) {
@@ -97,6 +89,13 @@ Node *new_node_for(Node *init, Node *condition, Node *loop) {
 	node->condition = condition;
 	node->loop = loop;
 	return node;
+}
+
+Type *new_type(TypeKind typekind, Type *ptr_to) {
+	Type *type = calloc(1, sizeof(Type));
+	type->ty = typekind;
+	type->ptr_to = ptr_to;
+	return type;
 }
 
 Node *expr();
@@ -165,9 +164,7 @@ Node *mul() {
 Node *add() {
 	Node *node = mul();
 	for (;;) {
-		if (consume_nxt("+")) {
-			node = new_node_LR(ND_ADD, node, mul());
-		}
+		if (consume_nxt("+")) node = new_node_LR(ND_ADD, node, mul());
 		else if (consume_nxt("-")) node = new_node_LR(ND_SUB, node, mul());
 		else return node;
 	}
@@ -195,9 +192,7 @@ Node *equality() {
 
 Node *assign() {
 	Node *node = equality();
-	if (consume_nxt("=")) {
-		node = new_node_LR(ND_ASSIGN, node, assign());
-	}
+	if (consume_nxt("=")) node = new_node_LR(ND_ASSIGN, node, assign());
 	return node;
 }
 
@@ -206,7 +201,6 @@ Node *expr() {
 	return node;
 }
 
-// TODO:
 Node *declaration() {
 	if (consume_d_type_nxt() == 0) return NULL;
 	int type_id = get_d_type_id();
@@ -222,9 +216,7 @@ Node *declaration() {
 	bool is_ptr = false;
 	while (consume_nxt("*")) {
 		is_ptr = true;
-		Type *now_type = calloc(1, sizeof(Type));
-		now_type->ty = PTR;
-		now_type->ptr_to = node->type;
+		Type *now_type = new_type(PTR, node->type);
 		node->type = now_type;
 	}
 	node->offset = add_lvar(token);
@@ -234,20 +226,17 @@ Node *declaration() {
 		return node;
 	}
 	node->kind = ND_LVAR;
+
 	consume_nxt("=");
-	if (is_ptr) {
-		Node *r = equality();
-		consume_nxt(";");
-		return new_node_LR(ND_DEREF_DEC, node, r);
-	} else {
-		Node *r = equality();
-		consume_nxt(";");
-		return new_node_LR(ND_ASSIGN, node, r);
-	}
+
+	Node *r = equality();
+	consume_nxt(";");
+	return new_node_LR(ND_ASSIGN, node, r);
 }
 
 Node *stmt() {
 	Node *node;
+	// control flow
 	if (consume_cntrl()) {
 		int control_id = get_cntrl_id();
 		next();
@@ -296,16 +285,16 @@ Node *stmt() {
 		}
 		return node;
 	}
-	// 変数宣言
+	// declaration
 	Node *dec = declaration();
 	if (dec != NULL) return dec;
+	// only ";"
 	if (consume_nxt(";")) {
-		// 何も式が書かれなかった場合
 		node = NULL;
 		return node;
 	}
+	// block
 	if (consume_nxt("{")) {
-		// ブロック
 		node = new_node_LR(ND_BLOCK, NULL, NULL);
 		Node *now = node;
 		while (!consume_nxt("}")) {
@@ -316,7 +305,7 @@ Node *stmt() {
 		now->next = NULL;
 		return node;
 	}
-	// ただの式
+	// pure expression
 	node = expr();
 	expect_nxt(";");
 	return node;
@@ -339,7 +328,7 @@ Function *func_def() {
 	while (!consume_nxt(")")) {
 		consume_d_type_nxt();
 		is_ident();
-		Node *arg = new_node_lvar_declaration(token);
+		Node *arg = new_node_lvar_dec(token);
 		arg->kind = ND_ARG;
 		*now_arg = arg;
 		now_arg = &(arg->next_arg);

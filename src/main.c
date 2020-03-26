@@ -1,7 +1,7 @@
 /**
  * @file main.c
  * @author Takamasa Naruse
- * @brief main関数実行用
+ * @brief main function
  * @version 0.1
  * @date 2020-03-21
  * 

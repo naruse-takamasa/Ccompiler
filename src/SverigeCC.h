@@ -25,7 +25,7 @@ void error(char *fmt, ...);
 ////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief トークンの種類の定義
+ * @brief define token kind
  * 
  */
 typedef enum {
@@ -126,14 +126,17 @@ typedef enum {
 	ND_INT,
 	// 変数宣言のみ
 	ND_NULL,
-	// ポインタの宣言
-	ND_DEREF_DEC,
 } NodeKind;
+
+typedef enum {
+	INT,
+	PTR,
+} TypeKind;
 
 typedef struct Type Type;
 
 struct Type {
-	enum{INT, PTR} ty;
+	TypeKind ty;
 	struct Type *ptr_to;
 };
 
@@ -197,7 +200,7 @@ struct Node {
 typedef struct Function Function;
 
 /**
- * @brief 1つのfunction definitionをまとめてる
+ * @brief function
  * 
  */
 struct Function {

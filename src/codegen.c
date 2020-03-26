@@ -1,7 +1,7 @@
 /**
  * @file codegen.c
  * @author Takamasa Naruse
- * @brief 抽象構文木からアセンブリを出力
+ * @brief output assembly langurage
  * @version 0.1
  * @date 2020-03-21
  * 
@@ -30,7 +30,7 @@ void store() {
 }
 
 /**
- * @brief 変数のアドレスを調べて、その値をpushする
+ * @brief push variable address
  * 
  * @param node 
  */
@@ -62,7 +62,6 @@ void gen(Node *node) {
 		store();
 		return;
 	case ND_RETURN:
-		// returnされた結果はraxにある.
 		gen(node->lhs);
 		printf("  pop rax\n");
 		printf("  mov rsp, rbp\n");
@@ -154,11 +153,6 @@ void gen(Node *node) {
 	case ND_DEREF:
 		gen(node->lhs);
 		load();
-		return;
-	case ND_DEREF_DEC:
-		addr_gen(node->lhs);
-		gen(node->rhs);
-		store();
 		return;
 	case ND_NULL:
 		return;

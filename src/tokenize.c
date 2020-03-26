@@ -1,7 +1,7 @@
 /**
  * @file tokenize.c
  * @author Takamasa Naruse
- * @brief トークナイズ用
+ * @brief tokenize user input
  * @version 0.1
  * @date 2020-03-21
  * 
@@ -60,10 +60,6 @@ void expect_ident_nxt() {
 bool is_ident() {
 	return token->kind == TK_IDENT;
 }
-
-// bool consume_ident() {
-// 	return token->kind == TK_IDENT;
-// }
 
 int consume_cntrl_nxt() {
 	int res = is_cntrl(token->str);
@@ -174,12 +170,12 @@ Token *tokenize(char *p) {
 	head.next = NULL;
 	Token *cur = &head;
 	while (*p) {
-		// 空白
+		// " "
 		if (isspace(*p)) {
 			p++;
 			continue;
 		}
-		// 記号
+		// reserved word
 		int reserved_len = is_reserved(p);
 		if (reserved_len) {
 			cur = new_token(TK_RESERVED, cur, p, reserved_len);
@@ -187,13 +183,13 @@ Token *tokenize(char *p) {
 			p += reserved_len;
 			continue;
 		}
-		// 数値
+		// number
 		if (isdigit(*p)) {
 			cur = new_token(TK_NUM, cur, p, -1);
 			cur->val = strtol(p, &p, 10);
 			continue;
 		}
-		// 変数か関数
+		// function name or variable
 		if (is_alnum(*p)) {
 			cur = new_token(TK_IDENT, cur, p, -1);
 			int idx = 0;
