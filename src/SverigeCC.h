@@ -29,12 +29,8 @@ void error(char *fmt, ...);
  * 
  */
 typedef enum {
-	// 制御構文
-	// TK_CONTROL_FLOW,
 	// 文字列(変数名とか関数名とか)
 	TK_IDENT,
-	// 基本データ型
-	// TK_DATA_TYPE,
 	// 数値
 	TK_NUM,
 	// 記号
@@ -89,7 +85,10 @@ bool at_eof();
 typedef enum {
 	// 算術演算
 	ND_ADD,
+	ND_PTR_ADD,
 	ND_SUB,
+	ND_PTR_SUB,
+	ND_PTR_DIFF,
 	ND_MUL,
 	ND_DIV,
 	// 比較演算
@@ -177,6 +176,7 @@ struct Node {
 	int val;
 	// 変数だったときの、rbpからのオフセット
 	int offset;
+	// 変数の型
 	Type *type;
 
 	// if
@@ -220,3 +220,9 @@ void program();
 ////////////////////////////////////////////////////////////////////////////
 
 void func_gen(Function *func);
+
+////////////////////////////////////////////////////////////////////////////
+// type_analyze.c
+////////////////////////////////////////////////////////////////////////////
+
+void type_analyzer(Node *node);

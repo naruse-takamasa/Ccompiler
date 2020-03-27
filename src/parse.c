@@ -48,13 +48,14 @@ Node *new_node_lvar(Token *tok) {
 	LVar *lvar = find_lvar(tok);
 	if (lvar) {
 		node->offset = lvar->offset;
+		node->type = lvar->type;
 	} else {
 		error("%sは知らん\n", tok->str);
 	}
 	return node;
 }
 
-int add_lvar(Token *tok) {
+int add_lvar(Token *tok, Type *type) {
 	LVar *lvar = find_lvar(tok);
 	if (lvar) error_at(tok->str, "変数名がかぶってます(add_lvar)\n");
 	lvar = calloc(1, sizeof(LVar));
@@ -62,14 +63,15 @@ int add_lvar(Token *tok) {
 	lvar->len = tok->len;
 	lvar->offset = lvar_list->offset + 8;
 	lvar->next = lvar_list;
+	lvar->type = type;
 	lvar_list = lvar;
 	return lvar->offset;
 }
 
-Node *new_node_lvar_dec(Token *tok) {
+Node *new_node_lvar_dec(Token *tok, Type *type) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
-	node->offset = add_lvar(tok);
+	node->offset = add_lvar(tok, type);
 	return node;
 }
 
@@ -161,11 +163,45 @@ Node *mul() {
 	}
 }
 
+Node *new_add(Node *node1, Node *node2) {
+	type_analyzer(node1);
+	type_analyzer(node2);
+	if (node1->type->ty == INT && node2->type->ty == INT) {
+		return new_node_LR(ND_ADD, node1, node2);
+	}
+	if (node1->type->ty == INT && node2->type->ty == PTR) {
+		return new_node_LR(ND_PTR_ADD, node2, node1);
+	}
+	if (node1->type->ty == PTR && node2->type->ty == INT) {
+		return new_node_LR(ND_PTR_ADD, node1, node2);
+	}
+	error("何その式(new_add)\n");
+	return new_node_LR(ND_PTR_ADD, node1, node2);
+}
+
+Node *new_sub(Node *node1, Node *node2) {
+	type_analyzer(node1);
+	type_analyzer(node2);
+	if (node1->type->ty == INT && node2->type->ty == INT) {
+		return new_node_LR(ND_SUB, node1, node2);
+	}
+	if (node1->type->ty == PTR && node2->type->ty == PTR) {
+		return new_node_LR(ND_PTR_DIFF, node1, node2);
+	}
+	if (node1->type->ty == PTR && node2->type->ty == INT) {
+		return new_node_LR(ND_PTR_SUB, node1, node2);
+	}
+	error("何その式(new_add)\n");
+	return new_node_LR(ND_PTR_SUB, node1, node2);
+}
+
 Node *add() {
 	Node *node = mul();
 	for (;;) {
-		if (consume_nxt("+")) node = new_node_LR(ND_ADD, node, mul());
-		else if (consume_nxt("-")) node = new_node_LR(ND_SUB, node, mul());
+		if (consume_nxt("+")) // node = new_node_LR(ND_ADD, node, mul());
+		{node = new_add(node, mul());}
+		else if (consume_nxt("-")) // node = new_node_LR(ND_SUB, node, mul());
+		{node = new_sub(node, mul());}
 		else return node;
 	}
 }
@@ -202,24 +238,25 @@ Node *expr() {
 }
 
 Node *declaration() {
-	if (consume_d_type_nxt() == 0) return NULL;
+	if (consume_d_type() == 0) return NULL;
 	int type_id = get_d_type_id();
 	Node *node = calloc(1, sizeof(Node));
 	switch (type_id)
 	{
 	case 0:
+		node->type = calloc(1, sizeof(Type));
 		node->type->ty = INT;
 		break;
 	default:
+		error("その型は知らん\n");
 		break;
 	}
-	bool is_ptr = false;
+	next();
 	while (consume_nxt("*")) {
-		is_ptr = true;
 		Type *now_type = new_type(PTR, node->type);
 		node->type = now_type;
 	}
-	node->offset = add_lvar(token);
+	node->offset = add_lvar(token, node->type);
 	expect_ident_nxt();
 	if (consume_nxt(";")) {
 		node->kind = ND_NULL;
@@ -305,9 +342,15 @@ Node *stmt() {
 		now->next = NULL;
 		return node;
 	}
-	// pure expression
+	// expression
 	node = expr();
 	expect_nxt(";");
+	return node;
+}
+
+Node *pre_stmt() {
+	Node *node = stmt();
+	type_analyzer(node);
 	return node;
 }
 
@@ -326,9 +369,23 @@ Function *func_def() {
 	Node **now_arg = &(func->next_arg);
 	int arg_cnt = 0;
 	while (!consume_nxt(")")) {
-		consume_d_type_nxt();
+		int type_id = get_d_type_id();
+		Type *now = calloc(1, sizeof(Type));
+		switch (type_id)
+		{
+		case 0:
+			now->ty = INT;
+			break;
+		default:
+			break;
+		}
+		next();
+		while (consume_nxt("*")) {
+			Type *now_type = new_type(PTR, now);
+			now = now_type;
+		}
 		is_ident();
-		Node *arg = new_node_lvar_dec(token);
+		Node *arg = new_node_lvar_dec(token, now);
 		arg->kind = ND_ARG;
 		*now_arg = arg;
 		now_arg = &(arg->next_arg);
@@ -337,7 +394,6 @@ Function *func_def() {
 		consume_nxt(",");
 	}
 	func->arg_count = arg_cnt;
-
 	// 関数本体の解析
 	expect_nxt("{");
 	Node **now = &(func->next_stmt);

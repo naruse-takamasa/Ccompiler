@@ -27,7 +27,7 @@ try() {
   fi
 }
 
-
+try 5 'int main() { int x=3; int y=5; int *z=&x; return *(z+1); }'
 try 0 'int main() { return 0; }'
 try 42 'int main() { return 42; }'
 try 21 'int main() { return 5+20-4; }'
