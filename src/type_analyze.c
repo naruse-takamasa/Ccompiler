@@ -40,7 +40,7 @@ void type_analyzer(Node *node) {
 	case ND_PTR_DIFF:
 	case ND_NUM:
 		node->type = calloc(1, sizeof(Type));
-		node->type->ty = INT;
+		node->type->ty = TP_INT;
 		return;
 	case ND_ASSIGN:
 	case ND_PTR_ADD:
@@ -50,16 +50,14 @@ void type_analyzer(Node *node) {
 		return;
 	case ND_ADDR:
 		node->type = calloc(1, sizeof(Type));
-		node->type->ty = PTR;
+		node->type->ty = TP_PTR;
 		node->type->ptr_to = node->lhs->type;
 		return;
 	case ND_DEREF:
 		node->type = calloc(1, sizeof(Type));
-		node->type->ty = PTR;
-		if (node->lhs->type->ty == PTR) node->type->ty = PTR;
-		else node->type->ty = INT;
-		return;
-	case ND_LVAR:
+		node->type->ty = TP_PTR;
+		if (node->lhs->type->ptr_to->ty == TP_PTR) node->type->ty = TP_PTR;
+		else node->type->ty = TP_INT;
 		return;
 	default:
 		break;

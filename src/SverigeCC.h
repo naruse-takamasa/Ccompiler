@@ -35,6 +35,8 @@ typedef enum {
 	TK_NUM,
 	// 記号
 	TK_RESERVED,
+	// sizeof
+	TK_SIZEOF,
 	// 終端
 	TK_EOF,
 } TokenKind;
@@ -128,8 +130,8 @@ typedef enum {
 } NodeKind;
 
 typedef enum {
-	INT,
-	PTR,
+	TP_INT,
+	TP_PTR,
 } TypeKind;
 
 typedef struct Type Type;

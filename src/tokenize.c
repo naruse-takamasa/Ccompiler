@@ -152,6 +152,12 @@ int is_reserved(char *p) {
 	return 0;
 }
 
+bool is_sizeof(char *p) {
+	char *szof = "sizeof";
+	if (memcmp(p, szof, 6) == 0 && !is_alnum(p[6])) return true;
+	return false;
+}
+
 bool at_eof() {
 	return token->kind == TK_EOF;
 }
@@ -187,6 +193,11 @@ Token *tokenize(char *p) {
 		if (isdigit(*p)) {
 			cur = new_token(TK_NUM, cur, p, -1);
 			cur->val = strtol(p, &p, 10);
+			continue;
+		}
+		if (is_sizeof(p)) {
+			cur = new_token(TK_SIZEOF, cur, p, 6);
+			p += 6;
 			continue;
 		}
 		// function name or variable

@@ -147,6 +147,11 @@ Node *unary() {
 	} else if (consume_nxt("&")) {
 		Node *node = new_node_LR(ND_ADDR, unary(), NULL);
 		return node;
+	} else if (consume_nxt("sizeof")) {
+		Node *node = unary();
+		type_analyzer(node);
+		if (node->type->ty == TP_INT) return new_node_set_num(4);
+		else return new_node_set_num(8);
 	} else {
 		return primary();
 	}
@@ -166,13 +171,13 @@ Node *mul() {
 Node *new_add(Node *node1, Node *node2) {
 	type_analyzer(node1);
 	type_analyzer(node2);
-	if (node1->type->ty == INT && node2->type->ty == INT) {
+	if (node1->type->ty == TP_INT && node2->type->ty == TP_INT) {
 		return new_node_LR(ND_ADD, node1, node2);
 	}
-	if (node1->type->ty == INT && node2->type->ty == PTR) {
+	if (node1->type->ty == TP_INT && node2->type->ty == TP_PTR) {
 		return new_node_LR(ND_PTR_ADD, node2, node1);
 	}
-	if (node1->type->ty == PTR && node2->type->ty == INT) {
+	if (node1->type->ty == TP_PTR && node2->type->ty == TP_INT) {
 		return new_node_LR(ND_PTR_ADD, node1, node2);
 	}
 	error("何その式(new_add)\n");
@@ -182,13 +187,13 @@ Node *new_add(Node *node1, Node *node2) {
 Node *new_sub(Node *node1, Node *node2) {
 	type_analyzer(node1);
 	type_analyzer(node2);
-	if (node1->type->ty == INT && node2->type->ty == INT) {
+	if (node1->type->ty == TP_INT && node2->type->ty == TP_INT) {
 		return new_node_LR(ND_SUB, node1, node2);
 	}
-	if (node1->type->ty == PTR && node2->type->ty == PTR) {
+	if (node1->type->ty == TP_PTR && node2->type->ty == TP_PTR) {
 		return new_node_LR(ND_PTR_DIFF, node1, node2);
 	}
-	if (node1->type->ty == PTR && node2->type->ty == INT) {
+	if (node1->type->ty == TP_PTR && node2->type->ty == TP_INT) {
 		return new_node_LR(ND_PTR_SUB, node1, node2);
 	}
 	error("何その式(new_add)\n");
@@ -198,10 +203,8 @@ Node *new_sub(Node *node1, Node *node2) {
 Node *add() {
 	Node *node = mul();
 	for (;;) {
-		if (consume_nxt("+")) // node = new_node_LR(ND_ADD, node, mul());
-		{node = new_add(node, mul());}
-		else if (consume_nxt("-")) // node = new_node_LR(ND_SUB, node, mul());
-		{node = new_sub(node, mul());}
+		if (consume_nxt("+")) node = new_add(node, mul());
+		else if (consume_nxt("-")) node = new_sub(node, mul());
 		else return node;
 	}
 }
@@ -245,7 +248,7 @@ Node *declaration() {
 	{
 	case 0:
 		node->type = calloc(1, sizeof(Type));
-		node->type->ty = INT;
+		node->type->ty = TP_INT;
 		break;
 	default:
 		error("その型は知らん\n");
@@ -253,7 +256,7 @@ Node *declaration() {
 	}
 	next();
 	while (consume_nxt("*")) {
-		Type *now_type = new_type(PTR, node->type);
+		Type *now_type = new_type(TP_PTR, node->type);
 		node->type = now_type;
 	}
 	node->offset = add_lvar(token, node->type);
@@ -374,14 +377,14 @@ Function *func_def() {
 		switch (type_id)
 		{
 		case 0:
-			now->ty = INT;
+			now->ty = TP_INT;
 			break;
 		default:
 			break;
 		}
 		next();
 		while (consume_nxt("*")) {
-			Type *now_type = new_type(PTR, now);
+			Type *now_type = new_type(TP_PTR, now);
 			now = now_type;
 		}
 		is_ident();

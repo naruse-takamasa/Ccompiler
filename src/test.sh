@@ -26,7 +26,12 @@ try() {
     exit 1
   fi
 }
-
+try 4 "int main() { int x = 4; return sizeof(x);}"
+try 8 "int main() { int *x; return sizeof(x);}"
+try 4 "int main() { int x = 4; return sizeof x;}"
+try 4 "int main() {int x = 4; return sizeof(x + 3);}"
+try 4 "int main() {int *x; return sizeof(*x);}"
+try 4 "int main() {return sizeof(3);}"
 try 5 'int main() { int x=3; int y=5; int *z=&x; return *(z+1); }'
 try 0 'int main() { return 0; }'
 try 42 'int main() { return 42; }'
