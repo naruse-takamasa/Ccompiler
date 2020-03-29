@@ -54,7 +54,7 @@ void gen(Node *node) {
 		return;
 	case ND_LVAR:
 		addr_gen(node);
-		load();
+		if (node->type->ty != TP_ARRAY) load();
 		return;
 	case ND_ASSIGN:
 		addr_gen(node->lhs);

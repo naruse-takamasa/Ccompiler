@@ -61,7 +61,11 @@ int add_lvar(Token *tok, Type *type) {
 	lvar = calloc(1, sizeof(LVar));
 	lvar->name = tok->str;
 	lvar->len = tok->len;
-	lvar->offset = lvar_list->offset + 8;
+	if (lvar_list->type != NULL && lvar_list->type->ty == TP_ARRAY) {
+		lvar->offset = lvar_list->offset + 8 * (lvar_list->type->array_size);
+	} else {
+		lvar->offset = lvar_list->offset + 8;
+	}
 	lvar->next = lvar_list;
 	lvar->type = type;
 	lvar_list = lvar;
@@ -180,7 +184,13 @@ Node *new_add(Node *node1, Node *node2) {
 	if (node1->type->ty == TP_PTR && node2->type->ty == TP_INT) {
 		return new_node_LR(ND_PTR_ADD, node1, node2);
 	}
-	error("何その式(new_add)\n");
+	if (node1->type->ty == TP_ARRAY && node2->type->ty == TP_INT) {
+		return new_node_LR(ND_PTR_ADD, node1, node2);
+	}
+	if (node1->type->ty == TP_INT && node2->type->ty == TP_ARRAY) {
+		return new_node_LR(ND_PTR_ADD, node2, node1);
+	}
+	error_at(token->str, "何その式(new_add)\n");
 	return new_node_LR(ND_PTR_ADD, node1, node2);
 }
 
@@ -196,7 +206,7 @@ Node *new_sub(Node *node1, Node *node2) {
 	if (node1->type->ty == TP_PTR && node2->type->ty == TP_INT) {
 		return new_node_LR(ND_PTR_SUB, node1, node2);
 	}
-	error("何その式(new_add)\n");
+	error("何その式(new_sub)\n");
 	return new_node_LR(ND_PTR_SUB, node1, node2);
 }
 
@@ -259,18 +269,33 @@ Node *declaration() {
 		Type *now_type = new_type(TP_PTR, node->type);
 		node->type = now_type;
 	}
-	node->offset = add_lvar(token, node->type);
-	expect_ident_nxt();
+	Token *var_name = consume_ident_nxt();
 	if (consume_nxt(";")) {
+		node->offset = add_lvar(var_name, node->type);
 		node->kind = ND_NULL;
 		return node;
 	}
-	node->kind = ND_LVAR;
 
-	consume_nxt("=");
+	// array
+	if (consume_nxt("[")) {
+		node->type->ptr_to = node->type;
+		node->type = calloc(1, sizeof(Type));
+		node->type->ty = TP_ARRAY;
+		node->type->array_size = expect_num_nxt();
+		node->offset = add_lvar(var_name, node->type);
+		expect_nxt("]");
+		expect_nxt(";");
+		node->kind = ND_NULL;
+		return node;
+	} else {
+		node->kind = ND_LVAR;
+		node->offset = add_lvar(var_name, node->type);
+	}
+	expect_nxt("=");
 
 	Node *r = equality();
 	consume_nxt(";");
+	type_analyzer(r);
 	return new_node_LR(ND_ASSIGN, node, r);
 }
 
@@ -406,6 +431,9 @@ Function *func_def() {
 		now = &(statement->next_stmt);
 	}
 	func->total_offset = lvar_list->offset;
+	if (lvar_list->type != NULL && lvar_list->type->ty == TP_ARRAY) {
+		func->total_offset += lvar_list->type->array_size * 8;
+	}
 	return func;
 }
 

@@ -52,6 +52,15 @@ int expect_num_nxt() {
 	return res;
 }
 
+Token *consume_ident_nxt() {
+	if (token->kind == TK_IDENT) {
+		Token *res = token;
+		next();
+		return res;
+	}
+	return NULL;
+}
+
 void expect_ident_nxt() {
 	if (token->kind == TK_IDENT) next();
 	else error_at(token->str, "not ident\n");

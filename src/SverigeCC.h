@@ -66,6 +66,7 @@ void next();
 bool consume(char *op);
 bool consume_nxt(char *op);
 bool consume_ident();
+Token *consume_ident_nxt();
 bool is_ident();
 int consume_cntrl_nxt();
 int consume_cntrl();
@@ -92,14 +93,14 @@ typedef enum {
 	ND_PTR_SUB,
 	ND_PTR_DIFF,
 	ND_MUL,
-	ND_DIV,
+	ND_DIV, // 6
 	// 比較演算
 	ND_LE,
 	ND_GE,
 	ND_LT,
 	ND_GT,
 	ND_EQ,
-	ND_NEQ,
+	ND_NEQ, // 12
 	// 数値
 	ND_NUM,
 	// 代入
@@ -107,31 +108,32 @@ typedef enum {
 	// 代入時の左辺の変数
 	ND_LVAR,
 	// 制御構文
-	ND_RETURN,
+	ND_RETURN, // 16
 	ND_IF,
 	ND_WHILE,
 	ND_FOR,
 	// {}
-	ND_BLOCK,
+	ND_BLOCK, // 20
 	// 関数呼び出し
 	ND_FUNCALL,
 	// 関数定義
 	ND_FUNCDEF,
 	// 仮引数
-	ND_ARG,
+	ND_ARG, // 23
 	// アドレス
 	ND_ADDR,
 	// ポインタ
 	ND_DEREF,
-	// int
+	// int 
 	ND_INT,
 	// 変数宣言のみ
-	ND_NULL,
+	ND_NULL, // 27
 } NodeKind;
 
 typedef enum {
 	TP_INT,
 	TP_PTR,
+	TP_ARRAY,
 } TypeKind;
 
 typedef struct Type Type;
@@ -139,6 +141,7 @@ typedef struct Type Type;
 struct Type {
 	TypeKind ty;
 	struct Type *ptr_to;
+	size_t array_size;
 };
 
 
