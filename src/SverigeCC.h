@@ -79,6 +79,7 @@ int is_d_type();
 void expect_nxt(char *op);
 int expect_num_nxt();
 void expect_ident_nxt();
+void expect_ident(void);
 bool at_eof();
 
 ////////////////////////////////////////////////////////////////////////////
@@ -209,11 +210,12 @@ typedef struct Function Function;
 struct Function {
 	char *name;
 	int arg_count;
-	Node *next_arg;
-	Node *next_stmt;
+	Node *arg;
+	Node *stmt;
 	Function *next;
 	int total_offset;
 	LVar *local;
+	Type *type;
 };
 
 void program(void);

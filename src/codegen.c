@@ -255,7 +255,7 @@ void func_gen(Function *func) {
 		printf("  mov [rax], %s\n", argreg[i]);
 	}
 
-	for (Node *now = func->next_stmt; now; now = now->next_stmt) {
+	for (Node *now = func->stmt; now; now = now->next_stmt) {
 		gen(now);
 	}
 

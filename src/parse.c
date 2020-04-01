@@ -445,38 +445,17 @@ Node *pre_stmt(void) {
 	return node;
 }
 
-Function *func_def(void) {
-	Function *func = calloc(1, sizeof(Function));
-	if (consume_d_type(token) == 0) error_at(token->str, "型を宣言してください\n");
-	next();
-
-	if (!is_ident()) error_at(token->str, "関数名を宣言してください\n");
-	func->name = strndup(token->str, token->len);
-	next();
-
-	// argument
+void read_argument(Function *func) {
 	expect_nxt("(");
-	Node **now_arg = &(func->next_arg);
+	Node **now_arg = &(func->arg);
 	int arg_cnt = 0;
 	while (!consume_nxt(")")) {
-		int type_id = get_d_type_id();
-		Type *now = calloc(1, sizeof(Type));
-		switch (type_id)
-		{
-		case 0:
-			now->ty = TP_INT;
-			now->_sizeof = 8;
-			break;
-		default:
-			error_at(token->str, "何その型\n");
-			break;
-		}
-		next();
+		Type *now = read_basetype()->type;
 		while (consume_nxt("*")) {
 			Type *now_type = new_type(TP_PTR, now, 8);
 			now = now_type;
 		}
-		is_ident();
+		expect_ident();
 		Node *arg = new_node_lvar_dec(token, now);
 		arg->kind = ND_ARG;
 		*now_arg = arg;
@@ -486,19 +465,34 @@ Function *func_def(void) {
 		consume_nxt(",");
 	}
 	func->arg_count = arg_cnt;
+}
 
-	// statement
+void read_stmt(Function *func) {
 	expect_nxt("{");
-	Node **now = &(func->next_stmt);
+	Node **now = &(func->stmt);
 	while (!consume_nxt("}")) {
 		Node *statement = pre_stmt();
 		*now = statement;
 		now = &(statement->next_stmt);
 	}
+}
 
+Function *func_def(void) {
+	Function *func = calloc(1, sizeof(Function));
+	// function type
+	if (consume_d_type(token) == 0)
+		error_at(token->str, "型を宣言してください\n");
+	next();
+	// function name
+	expect_ident();
+	func->name = strndup(token->str, token->len);
+	next();
+	// argument
+	read_argument(func);
+	// statement
+	read_stmt(func);
 	// calcurate total offset
 	func->total_offset = lvar_list->offset + lvar_list->type->_sizeof;
-
 	return func;
 }
 

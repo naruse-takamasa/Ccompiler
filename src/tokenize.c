@@ -66,6 +66,10 @@ void expect_ident_nxt() {
 	else error_at(token->str, "not ident\n");
 }
 
+void expect_ident(void) {
+	if (token->kind != TK_IDENT) error_at(token->str, "not ident\n");
+}
+
 bool is_ident() {
 	return token->kind == TK_IDENT;
 }
