@@ -145,7 +145,6 @@ struct Type {
 	size_t array_size;
 };
 
-
 typedef struct LVar LVar;
 
 struct LVar {
@@ -155,8 +154,6 @@ struct LVar {
 	int offset;
 	Type *type;
 };
-
-extern LVar *lvar_list;
 
 typedef struct Node Node;
 
@@ -219,7 +216,7 @@ struct Function {
 	LVar *local;
 };
 
-void program();
+void program(void);
 
 ////////////////////////////////////////////////////////////////////////////
 // codegen.c
@@ -231,4 +228,7 @@ void func_gen(Function *func);
 // type_analyze.c
 ////////////////////////////////////////////////////////////////////////////
 
+bool is_int(Type *type);
+bool is_ptr(Type *type);
+bool is_array(Type *type);
 void type_analyzer(Node *node);

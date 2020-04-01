@@ -10,7 +10,11 @@
  */
 #include "SverigeCC.h"
 
-LVar *lvar_list;
+static LVar *lvar_list;
+
+////////////////////////////////////////////////////////////////////////////
+// local variable tool
+////////////////////////////////////////////////////////////////////////////
 
 LVar *find_lvar(Token *tok) {
 	for (LVar *now = lvar_list; now; now = now->next) {
@@ -19,38 +23,6 @@ LVar *find_lvar(Token *tok) {
 		}
 	}
 	return NULL;
-}
-
-Node *new_node_LR(NodeKind kind, Node *lhs, Node *rhs) {
-	Node *node = calloc(1, sizeof(Node));
-	node->kind = kind;
-	node->lhs = lhs;
-	node->rhs = rhs;
-	return node;
-}
-
-Node *new_node_set_num(int val) {
-	Node *node = calloc(1, sizeof(Node));
-	node->kind = ND_NUM;
-	node->val = val;
-	return node;
-}
-
-/**
- * @brief tok->strという変数のオフセットを計算し、ノードを作成
- * 
- * @param tok 
- * @return Node* 
- */
-Node *new_node_lvar(Token *tok) {
-	Node *node = calloc(1, sizeof(Node));
-	node->kind = ND_LVAR;
-	LVar *lvar = find_lvar(tok);
-	if (lvar) {
-		node->offset = lvar->offset;
-		node->type = lvar->type;
-	} else error("%sは知らん\n", tok->str);
-	return node;
 }
 
 /**
@@ -74,10 +46,46 @@ int add_lvar(Token *tok, Type *type) {
 	return lvar->offset;
 }
 
+/**
+ * @brief tok->strという変数のオフセットを計算し、ノードを作成
+ * 
+ * @param tok 
+ * @return Node* 
+ */
+Node *new_node_lvar(Token *tok) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_LVAR;
+	LVar *lvar = find_lvar(tok);
+	if (lvar) {
+		node->offset = lvar->offset;
+		node->type = lvar->type;
+	} else error("%sは知らん\n", tok->str);
+	return node;
+}
+
 Node *new_node_lvar_dec(Token *tok, Type *type) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
 	node->offset = add_lvar(tok, type);
+	return node;
+}
+
+////////////////////////////////////////////////////////////////////////////
+// new node tool
+////////////////////////////////////////////////////////////////////////////
+
+Node *new_node_LR(NodeKind kind, Node *lhs, Node *rhs) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = kind;
+	node->lhs = lhs;
+	node->rhs = rhs;
+	return node;
+}
+
+Node *new_node_set_num(int val) {
+	Node *node = calloc(1, sizeof(Node));
+	node->kind = ND_NUM;
+	node->val = val;
 	return node;
 }
 
@@ -103,6 +111,9 @@ void set_node_kind(Node *node, NodeKind kind) {
 	node->kind = kind;
 }
 
+////////////////////////////////////////////////////////////////////////////
+// new type tool
+////////////////////////////////////////////////////////////////////////////
 Type *new_type(TypeKind typekind, Type *ptr_to, int sz) {
 	Type *type = calloc(1, sizeof(Type));
 	type->ty = typekind;
@@ -111,6 +122,9 @@ Type *new_type(TypeKind typekind, Type *ptr_to, int sz) {
 	return type;
 }
 
+////////////////////////////////////////////////////////////////////////////
+// construct abstract syntax tree
+////////////////////////////////////////////////////////////////////////////
 Node *expr(void);
 Node *unary(void);
 Node *stmt(void);
@@ -132,11 +146,13 @@ Node *read_funcall(Token *name) {
 }
 
 Node *primary(void) {
+	// "(" expression ")"
 	if (consume_nxt("(")) {
 		Node *node = expr();
 		expect_nxt(")");
 		return node;
 	}
+	// function call or variable
 	if (is_ident()) {
 		Token *name = token;
 		expect_ident_nxt();
@@ -184,19 +200,19 @@ Node *mul(void) {
 Node *new_add(Node *node1, Node *node2) {
 	type_analyzer(node1);
 	type_analyzer(node2);
-	if (node1->type->ty == TP_INT && node2->type->ty == TP_INT) {
+	if (is_int(node1->type) && is_int(node2->type)) {
 		return new_node_LR(ND_ADD, node1, node2);
 	}
-	if (node1->type->ty == TP_INT && node2->type->ty == TP_PTR) {
+	if (is_int(node1->type) && is_ptr(node2->type)) {
 		return new_node_LR(ND_PTR_ADD, node2, node1);
 	}
-	if (node1->type->ty == TP_PTR && node2->type->ty == TP_INT) {
+	if (is_ptr(node1->type) && is_int(node2->type)) {
 		return new_node_LR(ND_PTR_ADD, node1, node2);
 	}
-	if (node1->type->ty == TP_ARRAY && node2->type->ty == TP_INT) {
+	if (is_array(node1->type) && is_int(node2->type)) {
 		return new_node_LR(ND_PTR_ADD, node1, node2);
 	}
-	if (node1->type->ty == TP_INT && node2->type->ty == TP_ARRAY) {
+	if (is_int(node1->type) && is_array(node2->type)) {
 		return new_node_LR(ND_PTR_ADD, node2, node1);
 	}
 	error_at(token->str, "何その式(new_add)\n");
@@ -206,13 +222,13 @@ Node *new_add(Node *node1, Node *node2) {
 Node *new_sub(Node *node1, Node *node2) {
 	type_analyzer(node1);
 	type_analyzer(node2);
-	if (node1->type->ty == TP_INT && node2->type->ty == TP_INT) {
+	if (is_int(node1->type) && is_int(node2->type)) {
 		return new_node_LR(ND_SUB, node1, node2);
 	}
-	if (node1->type->ty == TP_PTR && node2->type->ty == TP_PTR) {
+	if (is_ptr(node1->type) && is_ptr(node2->type)) {
 		return new_node_LR(ND_PTR_DIFF, node1, node2);
 	}
-	if (node1->type->ty == TP_PTR && node2->type->ty == TP_INT) {
+	if (is_ptr(node1->type) && is_int(node2->type)) {
 		return new_node_LR(ND_PTR_SUB, node1, node2);
 	}
 	error("何その式(new_sub)\n");

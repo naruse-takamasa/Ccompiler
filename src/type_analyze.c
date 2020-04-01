@@ -11,6 +11,18 @@
 
 #include "SverigeCC.h"
 
+bool is_int(Type *type) {
+	return type->ty == TP_INT;
+}
+
+bool is_ptr(Type *type) {
+	return type->ty == TP_PTR;
+}
+
+bool is_array(Type *type) {
+	return type->ty == TP_ARRAY;
+}
+
 void type_analyzer(Node *node) {
 	if (node == NULL) return;
 	type_analyzer(node->lhs);

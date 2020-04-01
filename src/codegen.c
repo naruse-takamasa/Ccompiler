@@ -10,9 +10,9 @@
  */
 #include "SverigeCC.h"
 
-char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-int Label_id = 0;
-int Total_offset;
+static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static int Label_id = 0;
+static int Total_offset;
 
 void gen(Node *node);
 
