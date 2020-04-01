@@ -26,6 +26,7 @@ try() {
     exit 1
   fi
 }
+try 3 'int main() { return ret3(); }'
 try 0 'int main() { int x[2][3]; int *y=x; *y=0; return **x; }'
 try 1 'int main() { int x[2][3]; int *y=x; *(y+1)=1; return *(*x+1); }'
 try 2 'int main() { int x[2][3]; int *y=x; *(y+2)=2; return *(*x+2); }'

@@ -114,32 +114,34 @@ Type *new_type(TypeKind typekind, Type *ptr_to, int sz) {
 Node *expr();
 Node *unary();
 
-Node *primary() {
+Node *read_funcall(Token *name) {
+	if (!consume("(")) return NULL;
+	next();
+	Node *node = calloc(1, sizeof(Node));
+	set_node_kind(node, ND_FUNCALL);
+	node->funcname = strndup(name->str, name->len);
+	Node *now = node;
+	while (!consume_nxt(")")) {
+		Node *arg = expr();
+		now->next = arg;
+		now = arg;
+		consume_nxt(",");
+	}
+	return node;
+}
+
+Node *primary(void) {
 	if (consume_nxt("(")) {
 		Node *node = expr();
 		expect_nxt(")");
 		return node;
 	}
 	if (is_ident()) {
-		Token *now = token;
-		// function call
+		Token *name = token;
 		expect_ident_nxt();
-		if (consume_nxt("(")) {
-			Node *node = calloc(1, sizeof(Node));
-			set_node_kind(node, ND_FUNCALL);
-			node->funcname = strndup(now->str, now->len);
-			Node *now = node;
-			while (!consume_nxt(")")) {
-				Node *arg = expr();
-				now->next = arg;
-				now = arg;
-				consume_nxt(",");
-			}
-			return node;
-		}
-		// variable
-		Node *node = new_node_lvar(now);
-		return node;
+		Node *funcall = read_funcall(name);
+		if (funcall != NULL) return funcall;
+		else return new_node_lvar(name);
 	}
 	// number
 	// マジで????
@@ -147,7 +149,7 @@ Node *primary() {
 	return unary();
 }
 
-Node *unary() {
+Node *unary(void) {
 	if (consume_nxt("+")) {
 		Node *node = primary();
 		return node;
@@ -163,14 +165,13 @@ Node *unary() {
 	} else if (consume_nxt("sizeof")) {
 		Node *node = unary();
 		type_analyzer(node);
-		if (node->type->ty == TP_INT) return new_node_set_num(8);
-		else return new_node_set_num(8);
+		return new_node_set_num(node->type->_sizeof);
 	} else {
 		return primary();
 	}
 }
 
-Node *mul() {
+Node *mul(void) {
 	Node *node = unary();
 	for (;;) {
 		if (consume_nxt("*")) node = new_node_LR(ND_MUL, node, unary());
@@ -217,7 +218,7 @@ Node *new_sub(Node *node1, Node *node2) {
 	return NULL;
 }
 
-Node *add() {
+Node *add(void) {
 	Node *node = mul();
 	for (;;) {
 		if (consume_nxt("+")) node = new_add(node, mul());
@@ -226,7 +227,7 @@ Node *add() {
 	}
 }
 
-Node *relational() {
+Node *relational(void) {
 	Node *node = add();
 	for (;;) {
 		if (consume_nxt(">=")) node = new_node_LR(ND_GE, node, add());
@@ -237,7 +238,7 @@ Node *relational() {
 	}
 }
 
-Node *equality() {
+Node *equality(void) {
 	Node *node = relational();
 	for(;;) {
 		if (consume_nxt("==")) node = new_node_LR(ND_EQ, node, relational());
@@ -246,13 +247,13 @@ Node *equality() {
 	}
 }
 
-Node *assign() {
+Node *assign(void) {
 	Node *node = equality();
 	if (consume_nxt("=")) node = new_node_LR(ND_ASSIGN, node, assign());
 	return node;
 }
 
-Node *expr() {
+Node *expr(void) {
 	Node *node = assign();
 	return node;
 }
@@ -269,7 +270,7 @@ Type *read_array(Type *ty) {
 	return now;
 }
 
-Node *declaration() {
+Node *declaration(void) {
 	if (consume_d_type() == 0) return NULL;
 	int type_id = get_d_type_id();
 	Node *node = calloc(1, sizeof(Node));
@@ -305,7 +306,7 @@ Node *declaration() {
 	return new_node_LR(ND_ASSIGN, node, r);
 }
 
-Node *stmt() {
+Node *stmt(void) {
 	Node *node;
 	// control flow
 	if (consume_cntrl()) {
@@ -382,13 +383,13 @@ Node *stmt() {
 	return node;
 }
 
-Node *pre_stmt() {
+Node *pre_stmt(void) {
 	Node *node = stmt();
 	type_analyzer(node);
 	return node;
 }
 
-Function *func_def() {
+Function *func_def(void) {
 	Function *func = calloc(1, sizeof(Function));
 	if (consume_d_type(token) == 0) error_at(token->str, "型を宣言してください\n");
 	next();
@@ -450,7 +451,7 @@ void lvar_init(void) {
 	lvar_list->type = calloc(1, sizeof(Type));
 }
 
-void program() {
+void program(void) {
 	while (!at_eof()) {
 		lvar_init();
 		func_gen(func_def());
