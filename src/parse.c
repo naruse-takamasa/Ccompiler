@@ -125,6 +125,7 @@ Node *expr(void);
 Node *unary(void);
 Node *stmt(void);
 Node *pre_stmt(void);
+Node *new_add(Node *node1, Node *node2);
 
 Node *read_funcall(Token *name) {
 	if (!consume("(")) return NULL;
@@ -310,6 +311,17 @@ Node *primary(void) {
 	return unary();
 }
 
+Node *postfix(void) {
+	Node *node1 = primary();
+	while (consume_nxt("[")) {
+		Node *node2 = expr();
+		expect_nxt("]");
+		Node *add = new_add(node1, node2);
+		node1 = new_node_LR(ND_DEREF, add, NULL);
+	}
+	return node1;
+}
+
 Node *unary(void) {
 	if (consume_nxt("+")) {
 		Node *node = primary();
@@ -328,7 +340,7 @@ Node *unary(void) {
 		type_analyzer(node);
 		return new_node_set_num(node->type->_sizeof);
 	} else {
-		return primary();
+		return postfix();
 	}
 }
 
@@ -473,7 +485,7 @@ Node *pre_stmt(void) {
 	return node;
 }
 
-Function *func_def(void) {
+static Function *func_def(void) {
 	Function *func = calloc(1, sizeof(Function));
 	// function type
 	Node *basetype = read_basetype();
@@ -492,7 +504,7 @@ Function *func_def(void) {
 	return func;
 }
 
-void lvar_init(void) {
+static void lvar_init(void) {
 	lvar_list = calloc(1, sizeof(LVar));
 	lvar_list->type = calloc(1, sizeof(Type));
 }
