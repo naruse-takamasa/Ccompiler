@@ -11,6 +11,14 @@
 
 #include "SverigeCC.h"
 
+Type *new_type(TypeKind typekind, Type *ptr_to, int sz) {
+	Type *type = calloc(1, sizeof(Type));
+	type->ty = typekind;
+	type->ptr_to = ptr_to;
+	type->_sizeof = sz;
+	return type;
+}
+
 bool is_int(Type *type) {
 	return type->ty == TP_INT;
 }

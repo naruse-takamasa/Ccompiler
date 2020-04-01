@@ -63,6 +63,13 @@ Node *new_node_lvar(Token *tok) {
 	return node;
 }
 
+/**
+ * @brief 変数宣言と同時に初期化もするようなコードに対する処理
+ * 
+ * @param tok 
+ * @param type 
+ * @return Node* 
+ */
 Node *new_node_lvar_dec(Token *tok, Type *type) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
@@ -112,22 +119,12 @@ void set_node_kind(Node *node, NodeKind kind) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
-// new type tool
-////////////////////////////////////////////////////////////////////////////
-Type *new_type(TypeKind typekind, Type *ptr_to, int sz) {
-	Type *type = calloc(1, sizeof(Type));
-	type->ty = typekind;
-	type->ptr_to = ptr_to;
-	type->_sizeof = sz;
-	return type;
-}
-
-////////////////////////////////////////////////////////////////////////////
 // construct abstract syntax tree
 ////////////////////////////////////////////////////////////////////////////
 Node *expr(void);
 Node *unary(void);
 Node *stmt(void);
+Node *pre_stmt(void);
 
 Node *read_funcall(Token *name) {
 	if (!consume("(")) return NULL;
@@ -143,6 +140,153 @@ Node *read_funcall(Token *name) {
 		consume_nxt(",");
 	}
 	return node;
+}
+
+Type *read_array(Type *ty) {
+	if (!consume_nxt("[")) return ty;
+	Type *now = calloc(1, sizeof(Type));
+	now->ty = TP_ARRAY;
+	now->array_size = expect_num_nxt();
+	consume_nxt("]");
+	ty = read_array(ty);
+	now->ptr_to = ty;
+	now->_sizeof = now->array_size * ty->_sizeof;
+	return now;
+}
+
+Node *read_basetype() {
+	if (consume_d_type() == 0) return NULL;
+	int type_id = get_d_type_id();
+	Node *node = calloc(1, sizeof(Node));
+	switch (type_id)
+	{
+	case 0: // int
+		node->type = calloc(1, sizeof(Type));
+		node->type->ty = TP_INT;
+		node->type->_sizeof = 8;
+		break;
+	default:
+		error("その型は知らん\n");
+		break;
+	}
+	next();
+	return node;
+}
+
+Node *read_return(void) {
+	Node *res = new_node_LR(ND_RETURN, expr(), NULL);
+	expect_nxt(";");
+	return res;
+}
+
+Node *read_if(void) {
+	expect_nxt("(");
+	Node *res = new_node_if(expr(), NULL, NULL);
+	expect_nxt(")");
+	res->then_stmt = stmt();
+	int next_control_id = -1;
+	if (consume_cntrl()) next_control_id = get_cntrl_id();
+	if (next_control_id == 2) {
+		res->else_stmt = stmt();
+	}
+	return res;
+}
+
+Node *read_while(void) {
+	expect_nxt("(");
+	Node *res = new_node_LR(ND_WHILE, expr(), NULL);
+	expect_nxt(")");
+	res->rhs = stmt();
+	return res;
+}
+
+Node *read_for(void) {
+	Node *res = new_node_for(NULL, NULL, NULL);
+	expect_nxt("(");
+	if (!consume_nxt(";")) {
+		res->init = expr();
+		expect_nxt(";");
+	}
+	if (!consume_nxt(";")) {
+		res->condition = expr();
+		expect_nxt(";");
+	}
+	if (!consume_nxt(")")) {
+		res->loop = expr();
+		expect_nxt(")");
+	}
+	res->then_stmt = stmt();
+	return res;
+}
+
+Node *read_cntrl_flow(void) {
+	if (!consume_cntrl()) return NULL;
+	int cntrl_id = get_cntrl_id();
+	next();
+	Node *node;
+	switch (cntrl_id) {
+		case 0: // return
+			node = read_return();
+			break;
+		case 1: // if
+			node = read_if();
+			break;
+		case 3: // while
+			node = read_while();
+			break;
+		case 4: // for
+			node = read_for();
+			break;
+		default:
+			error_at(token->str, "何その制御構文\n");
+			break;
+	}
+	return node;
+}
+
+Node *read_block(void) {
+	if (!consume("{")) return NULL;
+	next();
+	Node *res = new_node_LR(ND_BLOCK, NULL, NULL);
+	Node *now = res;
+	while (!consume_nxt("}")) {
+		Node *statement = stmt();
+		now->next = statement;
+		now = statement;
+	}
+	now->next = NULL;
+	return res;
+}
+void read_argument(Function *func) {
+	expect_nxt("(");
+	Node **now_arg = &(func->arg);
+	int arg_cnt = 0;
+	while (!consume_nxt(")")) {
+		Type *now = read_basetype()->type;
+		while (consume_nxt("*")) {
+			Type *now_type = new_type(TP_PTR, now, 8);
+			now = now_type;
+		}
+		expect_ident();
+		Node *arg = new_node_lvar_dec(token, now);
+		arg->kind = ND_ARG;
+		*now_arg = arg;
+		now_arg = &(arg->next_arg);
+		arg_cnt++;
+		next();
+		consume_nxt(",");
+	}
+	func->arg_count = arg_cnt;
+}
+
+void read_stmt(Function *func) {
+	expect_nxt("{");
+	Node **now = &(func->stmt);
+	while (!consume_nxt("}")) {
+		Node *statement = pre_stmt();
+		*now = statement;
+		now = &(statement->next_stmt);
+	}
 }
 
 Node *primary(void) {
@@ -275,37 +419,6 @@ Node *expr(void) {
 	return node;
 }
 
-Type *read_array(Type *ty) {
-	if (!consume_nxt("[")) return ty;
-	Type *now = calloc(1, sizeof(Type));
-	now->ty = TP_ARRAY;
-	now->array_size = expect_num_nxt();
-	consume_nxt("]");
-	ty = read_array(ty);
-	now->ptr_to = ty;
-	now->_sizeof = now->array_size * ty->_sizeof;
-	return now;
-}
-
-Node *read_basetype() {
-	if (consume_d_type() == 0) return NULL;
-	int type_id = get_d_type_id();
-	Node *node = calloc(1, sizeof(Node));
-	switch (type_id)
-	{
-	case 0: // int
-		node->type = calloc(1, sizeof(Type));
-		node->type->ty = TP_INT;
-		node->type->_sizeof = 8;
-		break;
-	default:
-		error("その型は知らん\n");
-		break;
-	}
-	next();
-	return node;
-}
-
 Node *declaration(void) {
 	Node *node = read_basetype();
 	if (node == NULL) return NULL;
@@ -330,91 +443,6 @@ Node *declaration(void) {
 	consume_nxt(";");
 	type_analyzer(r);
 	return new_node_LR(ND_ASSIGN, node, r);
-}
-
-Node *read_return(void) {
-	Node *res = new_node_LR(ND_RETURN, expr(), NULL);
-	expect_nxt(";");
-	return res;
-}
-
-Node *read_if(void) {
-	expect_nxt("(");
-	Node *res = new_node_if(expr(), NULL, NULL);
-	expect_nxt(")");
-	res->then_stmt = stmt();
-	int next_control_id = -1;
-	if (consume_cntrl()) next_control_id = get_cntrl_id();
-	if (next_control_id == 2) {
-		res->else_stmt = stmt();
-	}
-	return res;
-}
-
-Node *read_while(void) {
-	expect_nxt("(");
-	Node *res = new_node_LR(ND_WHILE, expr(), NULL);
-	expect_nxt(")");
-	res->rhs = stmt();
-	return res;
-}
-
-Node *read_for(void) {
-	Node *res = new_node_for(NULL, NULL, NULL);
-	expect_nxt("(");
-	if (!consume_nxt(";")) {
-		res->init = expr();
-		expect_nxt(";");
-	}
-	if (!consume_nxt(";")) {
-		res->condition = expr();
-		expect_nxt(";");
-	}
-	if (!consume_nxt(")")) {
-		res->loop = expr();
-		expect_nxt(")");
-	}
-	res->then_stmt = stmt();
-	return res;
-}
-
-Node *read_cntrl_flow(void) {
-	if (!consume_cntrl()) return NULL;
-	int cntrl_id = get_cntrl_id();
-	next();
-	Node *node;
-	switch (cntrl_id) {
-		case 0: // return
-			node = read_return();
-			break;
-		case 1: // if
-			node = read_if();
-			break;
-		case 3: // while
-			node = read_while();
-			break;
-		case 4: // for
-			node = read_for();
-			break;
-		default:
-			error_at(token->str, "何その制御構文\n");
-			break;
-	}
-	return node;
-}
-
-Node *read_block(void) {
-	if (!consume("{")) return NULL;
-	next();
-	Node *res = new_node_LR(ND_BLOCK, NULL, NULL);
-	Node *now = res;
-	while (!consume_nxt("}")) {
-		Node *statement = stmt();
-		now->next = statement;
-		now = statement;
-	}
-	now->next = NULL;
-	return res;
 }
 
 Node *stmt(void) {
@@ -445,44 +473,12 @@ Node *pre_stmt(void) {
 	return node;
 }
 
-void read_argument(Function *func) {
-	expect_nxt("(");
-	Node **now_arg = &(func->arg);
-	int arg_cnt = 0;
-	while (!consume_nxt(")")) {
-		Type *now = read_basetype()->type;
-		while (consume_nxt("*")) {
-			Type *now_type = new_type(TP_PTR, now, 8);
-			now = now_type;
-		}
-		expect_ident();
-		Node *arg = new_node_lvar_dec(token, now);
-		arg->kind = ND_ARG;
-		*now_arg = arg;
-		now_arg = &(arg->next_arg);
-		arg_cnt++;
-		next();
-		consume_nxt(",");
-	}
-	func->arg_count = arg_cnt;
-}
-
-void read_stmt(Function *func) {
-	expect_nxt("{");
-	Node **now = &(func->stmt);
-	while (!consume_nxt("}")) {
-		Node *statement = pre_stmt();
-		*now = statement;
-		now = &(statement->next_stmt);
-	}
-}
-
 Function *func_def(void) {
 	Function *func = calloc(1, sizeof(Function));
 	// function type
-	if (consume_d_type(token) == 0)
-		error_at(token->str, "型を宣言してください\n");
-	next();
+	Node *basetype = read_basetype();
+	if (basetype == NULL) error_at(token->str, "型を宣言しろ\n");
+	func->type = basetype->type;
 	// function name
 	expect_ident();
 	func->name = strndup(token->str, token->len);

@@ -230,6 +230,7 @@ void func_gen(Function *func);
 // type_analyze.c
 ////////////////////////////////////////////////////////////////////////////
 
+Type *new_type(TypeKind typekind, Type *ptr_to, int sz);
 bool is_int(Type *type);
 bool is_ptr(Type *type);
 bool is_array(Type *type);
