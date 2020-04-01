@@ -39,7 +39,9 @@ void addr_gen(Node *node) {
 		gen(node->lhs);
 		return;
 	}
-	if (node->kind != ND_LVAR) error("代入の左辺値が変数ではありません\n");
+	if (node->kind != ND_LVAR) {
+		error("代入の左辺値が変数ではありません\n");
+	}
 	printf("  mov rax, rbp\n");
 	printf("  sub rax, %d\n", Total_offset + 8);
 	printf("  add rax, %d\n", node->offset);
@@ -152,7 +154,7 @@ void gen(Node *node) {
 		return;
 	case ND_DEREF:
 		gen(node->lhs);
-		load();
+		if (node->type->ty != TP_ARRAY) load();
 		return;
 	case ND_NULL:
 		return;
@@ -184,20 +186,22 @@ void gen(Node *node) {
 		printf("  add rax, rdi\n");
 		break;
 	case ND_PTR_ADD:
-		printf("  imul rdi, 8\n");
+		if (node->lhs->type->ty == TP_ARRAY) {
+			printf("  imul rdi, %d\n", node->lhs->type->ptr_to->_sizeof);
+		} else printf("  imul rdi, %d\n", node->lhs->type->_sizeof);
 		printf("  add rax, rdi\n");
 		break;
 	case ND_SUB:
 		printf("  sub rax, rdi\n");
 		break;
 	case ND_PTR_SUB:
-		printf("  imul rdi, 8\n");
+		printf("  imul rdi, %d\n", node->lhs->type->_sizeof);
 		printf("  sub rax, rdi\n");
 		break;
 	case ND_PTR_DIFF:
 		printf("  sub rax, rdi\n");
 		printf("  cqo\n");
-		printf("  mov rdi, 8\n");
+		printf("  mov rdi, %d\n", node->lhs->type->_sizeof);
 		printf("  idiv rdi\n");
 		break;
 	case ND_MUL:
@@ -236,14 +240,13 @@ void gen(Node *node) {
 void func_gen(Function *func) {
 	printf("%s:\n", func->name);
 
-	// プロローグ
+	// prologue
 	// ローカル変数領域の確保
 	printf("  push rbp\n");
 	printf("  mov rbp, rsp\n");
 	printf("  sub rsp, %d\n", func->total_offset);
 
 	Total_offset = func->total_offset;
-
 	// このアドレスの並びであってるのかな-??
 	for (int i = 0; i < func->arg_count; i++) {
 		printf("  mov rax, rbp\n");
@@ -256,7 +259,7 @@ void func_gen(Function *func) {
 		gen(now);
 	}
 
-	// エピローグ
+	// epilogue
 	printf("  mov rsp, rbp\n");
 	printf("  pop rbp\n");
 	printf("  ret\n");

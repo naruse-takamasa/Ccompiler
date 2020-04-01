@@ -26,18 +26,25 @@ try() {
     exit 1
   fi
 }
+try 0 'int main() { int x[2][3]; int *y=x; *y=0; return **x; }'
+try 1 'int main() { int x[2][3]; int *y=x; *(y+1)=1; return *(*x+1); }'
+try 2 'int main() { int x[2][3]; int *y=x; *(y+2)=2; return *(*x+2); }'
+try 3 'int main() { int x[2][3]; int *y=x; *(y+3)=3; return **(x+1); }'
+try 4 'int main() { int x[2][3]; int *y=x; *(y+4)=4; return *(*(x+1)+1); }'
+try 5 'int main() { int x[2][3]; int *y=x; *(y+5)=5; return *(*(x+1)+2); }'
+try 6 'int main() { int x[2][3]; int *y=x; *(y+6)=6; return **(x+2); }'
 try 5 'int main() { int x=3; int y=5; int *z=&x; return *(z+1); }'
 try 3 'int main() { int x[2]; int *y=&x; *y=3; return *x; }'
 
 try 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'
 try 4 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+1); }'
 try 5 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+2); }'
-try 4 "int main() { int x = 4; return sizeof(x);}"
+try 8 "int main() { int x = 4; return sizeof(x);}"
 try 8 "int main() { int *x; return sizeof(x);}"
-try 4 "int main() { int x = 4; return sizeof x;}"
-try 4 "int main() {int x = 4; return sizeof(x + 3);}"
-try 4 "int main() {int *x; return sizeof(*x);}"
-try 4 "int main() {return sizeof(3);}"
+try 8 "int main() { int x = 4; return sizeof x;}"
+try 8 "int main() {int x = 4; return sizeof(x + 3);}"
+try 8 "int main() {int *x; return sizeof(*x);}"
+try 8 "int main() {return sizeof(3);}"
 try 5 'int main() { int x=3; int y=5; int *z=&x; return *(z+1); }'
 try 0 'int main() { return 0; }'
 try 42 'int main() { return 42; }'

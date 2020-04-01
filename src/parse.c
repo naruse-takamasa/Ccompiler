@@ -49,23 +49,25 @@ Node *new_node_lvar(Token *tok) {
 	if (lvar) {
 		node->offset = lvar->offset;
 		node->type = lvar->type;
-	} else {
-		error("%sは知らん\n", tok->str);
-	}
+	} else error("%sは知らん\n", tok->str);
 	return node;
 }
 
+/**
+ * @brief 変数リストに加えるだけ
+ * 
+ * @param tok 
+ * @param type 
+ * @return int 
+ */
 int add_lvar(Token *tok, Type *type) {
 	LVar *lvar = find_lvar(tok);
 	if (lvar) error_at(tok->str, "変数名がかぶってます(add_lvar)\n");
 	lvar = calloc(1, sizeof(LVar));
 	lvar->name = tok->str;
 	lvar->len = tok->len;
-	if (lvar_list->type != NULL && lvar_list->type->ty == TP_ARRAY) {
-		lvar->offset = lvar_list->offset + 8 * (lvar_list->type->array_size);
-	} else {
-		lvar->offset = lvar_list->offset + 8;
-	}
+	if (lvar_list->offset == 0 && lvar_list->type->_sizeof == 0) lvar->offset = 8;
+	else lvar->offset = lvar_list->offset + lvar_list->type->_sizeof;
 	lvar->next = lvar_list;
 	lvar->type = type;
 	lvar_list = lvar;
@@ -97,10 +99,15 @@ Node *new_node_for(Node *init, Node *condition, Node *loop) {
 	return node;
 }
 
-Type *new_type(TypeKind typekind, Type *ptr_to) {
+void set_node_kind(Node *node, NodeKind kind) {
+	node->kind = kind;
+}
+
+Type *new_type(TypeKind typekind, Type *ptr_to, int sz) {
 	Type *type = calloc(1, sizeof(Type));
 	type->ty = typekind;
 	type->ptr_to = ptr_to;
+	type->_sizeof = sz;
 	return type;
 }
 
@@ -115,10 +122,11 @@ Node *primary() {
 	}
 	if (is_ident()) {
 		Token *now = token;
+		// function call
 		expect_ident_nxt();
 		if (consume_nxt("(")) {
 			Node *node = calloc(1, sizeof(Node));
-			node->kind = ND_FUNCALL;
+			set_node_kind(node, ND_FUNCALL);
 			node->funcname = strndup(now->str, now->len);
 			Node *now = node;
 			while (!consume_nxt(")")) {
@@ -127,12 +135,13 @@ Node *primary() {
 				now = arg;
 				consume_nxt(",");
 			}
-			now->next = NULL;
 			return node;
 		}
+		// variable
 		Node *node = new_node_lvar(now);
 		return node;
 	}
+	// number
 	// マジで????
 	if (token->kind == TK_NUM) return new_node_set_num(expect_num_nxt());
 	return unary();
@@ -154,7 +163,7 @@ Node *unary() {
 	} else if (consume_nxt("sizeof")) {
 		Node *node = unary();
 		type_analyzer(node);
-		if (node->type->ty == TP_INT) return new_node_set_num(4);
+		if (node->type->ty == TP_INT) return new_node_set_num(8);
 		else return new_node_set_num(8);
 	} else {
 		return primary();
@@ -166,9 +175,7 @@ Node *mul() {
 	for (;;) {
 		if (consume_nxt("*")) node = new_node_LR(ND_MUL, node, unary());
 		else if (consume_nxt("/")) node = new_node_LR(ND_DIV, node, unary());
-		else {
-			return node;
-		}
+		else return node;
 	}
 }
 
@@ -191,7 +198,7 @@ Node *new_add(Node *node1, Node *node2) {
 		return new_node_LR(ND_PTR_ADD, node2, node1);
 	}
 	error_at(token->str, "何その式(new_add)\n");
-	return new_node_LR(ND_PTR_ADD, node1, node2);
+	return NULL;
 }
 
 Node *new_sub(Node *node1, Node *node2) {
@@ -207,7 +214,7 @@ Node *new_sub(Node *node1, Node *node2) {
 		return new_node_LR(ND_PTR_SUB, node1, node2);
 	}
 	error("何その式(new_sub)\n");
-	return new_node_LR(ND_PTR_SUB, node1, node2);
+	return NULL;
 }
 
 Node *add() {
@@ -250,6 +257,18 @@ Node *expr() {
 	return node;
 }
 
+Type *read_array(Type *ty) {
+	if (!consume_nxt("[")) return ty;
+	Type *now = calloc(1, sizeof(Type));
+	now->ty = TP_ARRAY;
+	now->array_size = expect_num_nxt();
+	consume_nxt("]");
+	ty = read_array(ty);
+	now->ptr_to = ty;
+	now->_sizeof = now->array_size * ty->_sizeof;
+	return now;
+}
+
 Node *declaration() {
 	if (consume_d_type() == 0) return NULL;
 	int type_id = get_d_type_id();
@@ -259,6 +278,7 @@ Node *declaration() {
 	case 0:
 		node->type = calloc(1, sizeof(Type));
 		node->type->ty = TP_INT;
+		node->type->_sizeof = 8;
 		break;
 	default:
 		error("その型は知らん\n");
@@ -266,33 +286,19 @@ Node *declaration() {
 	}
 	next();
 	while (consume_nxt("*")) {
-		Type *now_type = new_type(TP_PTR, node->type);
+		Type *now_type = new_type(TP_PTR, node->type, 8);
 		node->type = now_type;
 	}
 	Token *var_name = consume_ident_nxt();
+	node->type = read_array(node->type);
 	if (consume_nxt(";")) {
 		node->offset = add_lvar(var_name, node->type);
 		node->kind = ND_NULL;
 		return node;
 	}
-
-	// array
-	if (consume_nxt("[")) {
-		node->type->ptr_to = node->type;
-		node->type = calloc(1, sizeof(Type));
-		node->type->ty = TP_ARRAY;
-		node->type->array_size = expect_num_nxt();
-		node->offset = add_lvar(var_name, node->type);
-		expect_nxt("]");
-		expect_nxt(";");
-		node->kind = ND_NULL;
-		return node;
-	} else {
-		node->kind = ND_LVAR;
-		node->offset = add_lvar(var_name, node->type);
-	}
 	expect_nxt("=");
-
+	node->offset = add_lvar(var_name, node->type);
+	set_node_kind(node, ND_LVAR);
 	Node *r = equality();
 	consume_nxt(";");
 	type_analyzer(r);
@@ -384,7 +390,6 @@ Node *pre_stmt() {
 
 Function *func_def() {
 	Function *func = calloc(1, sizeof(Function));
-
 	if (consume_d_type(token) == 0) error_at(token->str, "型を宣言してください\n");
 	next();
 
@@ -392,7 +397,7 @@ Function *func_def() {
 	func->name = strndup(token->str, token->len);
 	next();
 
-	// 引数を解析
+	// argument
 	expect_nxt("(");
 	Node **now_arg = &(func->next_arg);
 	int arg_cnt = 0;
@@ -403,13 +408,15 @@ Function *func_def() {
 		{
 		case 0:
 			now->ty = TP_INT;
+			now->_sizeof = 8;
 			break;
 		default:
+			error_at(token->str, "何その型\n");
 			break;
 		}
 		next();
 		while (consume_nxt("*")) {
-			Type *now_type = new_type(TP_PTR, now);
+			Type *now_type = new_type(TP_PTR, now, 8);
 			now = now_type;
 		}
 		is_ident();
@@ -422,24 +429,30 @@ Function *func_def() {
 		consume_nxt(",");
 	}
 	func->arg_count = arg_cnt;
-	// 関数本体の解析
+
+	// statement
 	expect_nxt("{");
 	Node **now = &(func->next_stmt);
 	while (!consume_nxt("}")) {
-		Node *statement = stmt();
+		Node *statement = pre_stmt();
 		*now = statement;
 		now = &(statement->next_stmt);
 	}
-	func->total_offset = lvar_list->offset;
-	if (lvar_list->type != NULL && lvar_list->type->ty == TP_ARRAY) {
-		func->total_offset += lvar_list->type->array_size * 8;
-	}
+
+	// calcurate total offset
+	func->total_offset = lvar_list->offset + lvar_list->type->_sizeof;
+
 	return func;
+}
+
+void lvar_init(void) {
+	lvar_list = calloc(1, sizeof(LVar));
+	lvar_list->type = calloc(1, sizeof(Type));
 }
 
 void program() {
 	while (!at_eof()) {
-		lvar_list = calloc(1, sizeof(LVar));
+		lvar_init();
 		func_gen(func_def());
 	}
 }

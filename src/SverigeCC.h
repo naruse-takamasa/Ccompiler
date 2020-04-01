@@ -104,7 +104,7 @@ typedef enum {
 	// 数値
 	ND_NUM,
 	// 代入
-	ND_ASSIGN,
+	ND_ASSIGN, // 14
 	// 代入時の左辺の変数
 	ND_LVAR,
 	// 制御構文
@@ -123,7 +123,7 @@ typedef enum {
 	// アドレス
 	ND_ADDR,
 	// ポインタ
-	ND_DEREF,
+	ND_DEREF, // 25
 	// int 
 	ND_INT,
 	// 変数宣言のみ
@@ -141,6 +141,7 @@ typedef struct Type Type;
 struct Type {
 	TypeKind ty;
 	struct Type *ptr_to;
+	int _sizeof;
 	size_t array_size;
 };
 

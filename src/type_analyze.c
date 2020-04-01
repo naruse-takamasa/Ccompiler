@@ -41,23 +41,21 @@ void type_analyzer(Node *node) {
 	case ND_NUM:
 		node->type = calloc(1, sizeof(Type));
 		node->type->ty = TP_INT;
+		node->type->_sizeof = 8;
 		return;
 	case ND_ASSIGN:
 	case ND_PTR_ADD:
 	case ND_PTR_SUB:
-		node->type = calloc(1, sizeof(Type));
 		node->type = node->lhs->type;
 		return;
 	case ND_ADDR:
 		node->type = calloc(1, sizeof(Type));
 		node->type->ty = TP_PTR;
 		node->type->ptr_to = node->lhs->type;
+		node->type->_sizeof = 8;
 		return;
 	case ND_DEREF:
-		node->type = calloc(1, sizeof(Type));
-		node->type->ty = TP_PTR;
-		if (node->lhs->type->ptr_to->ty == TP_PTR) node->type->ty = TP_PTR;
-		else node->type->ty = TP_INT;
+		node->type = node->lhs->type->ptr_to;
 		return;
 	default:
 		break;
