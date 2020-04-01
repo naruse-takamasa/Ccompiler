@@ -149,7 +149,7 @@ struct Type {
 typedef struct Var Var;
 
 struct Var {
-	LVar *next;
+	Var *next;
 	char *name;
 	int len;
 	int offset;
@@ -214,7 +214,7 @@ struct Function {
 	Node *stmt;
 	Function *next;
 	int total_offset;
-	LVar *local;
+	Var *local;
 	Type *type;
 };
 
