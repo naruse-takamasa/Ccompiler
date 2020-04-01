@@ -14,15 +14,15 @@ static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static int Label_id = 0;
 static int Total_offset;
 
-void gen(Node *node);
+static void gen(Node *node);
 
-void load() {
+static void load() {
 	printf("  pop rax\n");
 	printf("  mov rax, [rax]\n");
 	printf("  push rax\n");
 }
 
-void store() {
+static void store() {
 	printf("  pop rdi\n");
 	printf("  pop rax\n");
 	printf("  mov [rax], rdi\n");
@@ -34,7 +34,7 @@ void store() {
  * 
  * @param node 
  */
-void addr_gen(Node *node) {
+static void addr_gen(Node *node) {
 	if (node->kind == ND_DEREF) {
 		gen(node->lhs);
 		return;
@@ -48,7 +48,7 @@ void addr_gen(Node *node) {
 	printf("  push rax\n");
 }
 
-void gen(Node *node) {
+static void gen(Node *node) {
 	switch (node->kind)
 	{
 	case ND_NUM:

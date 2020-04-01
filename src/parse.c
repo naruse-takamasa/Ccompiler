@@ -10,25 +10,41 @@
  */
 #include "SverigeCC.h"
 
-static LVar *lvar_list;
+static Var *lvar_list;
+static Var *gvar_list;
 
 ////////////////////////////////////////////////////////////////////////////
 // local variable tool
 ////////////////////////////////////////////////////////////////////////////
-// TODO:
+
 /**
- * @brief tok->strと一致するようなローカル変数があるか探して、あるならLVar型を返す
+ * @brief tok->strと一致するようなグローバル変数を探す
  * 
  * @param tok 
- * @return LVar* 
+ * @return Var* 
  */
-LVar *find_lvar(Token *tok) {
-	for (LVar *now = lvar_list; now; now = now->next) {
+static Var *find_gvar(Token *tok) {
+	for (Var *now = gvar_list; now; now = now->next) {
 		if (tok->len == now->len && memcmp(tok->str, now->name, tok->len) == 0) {
 			return now;
 		}
 	}
 	return NULL;
+}
+
+/**
+ * @brief tok->strと一致するようなローカル変数を探す.ないならグローバル変数から探す.
+ * 
+ * @param tok 
+ * @return LVar* 
+ */
+static Var *find_lvar(Token *tok) {
+	for (Var *now = lvar_list; now; now = now->next) {
+		if (tok->len == now->len && memcmp(tok->str, now->name, tok->len) == 0) {
+			return now;
+		}
+	}
+	return find_gvar(tok);
 }
 
 /**
@@ -38,10 +54,10 @@ LVar *find_lvar(Token *tok) {
  * @param type 
  * @return int 
  */
-int add_lvar(Token *tok, Type *type) {
-	LVar *lvar = find_lvar(tok);
+static int add_lvar(Token *tok, Type *type) {
+	Var *lvar = find_lvar(tok);
 	if (lvar) error_at(tok->str, "変数名がかぶってます(add_lvar)\n");
-	lvar = calloc(1, sizeof(LVar));
+	lvar = calloc(1, sizeof(Var));
 	lvar->name = tok->str;
 	lvar->len = tok->len;
 	if (lvar_list->offset == 0 && lvar_list->type->_sizeof == 0) lvar->offset = 8;
@@ -58,10 +74,10 @@ int add_lvar(Token *tok, Type *type) {
  * @param tok 
  * @return Node* 
  */
-Node *new_node_lvar(Token *tok) {
+static Node *new_node_lvar(Token *tok) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
-	LVar *lvar = find_lvar(tok);
+	Var *lvar = find_lvar(tok);
 	if (lvar) {
 		node->offset = lvar->offset;
 		node->type = lvar->type;
@@ -76,7 +92,7 @@ Node *new_node_lvar(Token *tok) {
  * @param type 
  * @return Node* 
  */
-Node *new_node_lvar_dec(Token *tok, Type *type) {
+static Node *new_node_lvar_dec(Token *tok, Type *type) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
 	node->offset = add_lvar(tok, type);
@@ -87,7 +103,7 @@ Node *new_node_lvar_dec(Token *tok, Type *type) {
 // new node tool
 ////////////////////////////////////////////////////////////////////////////
 
-Node *new_node_LR(NodeKind kind, Node *lhs, Node *rhs) {
+static Node *new_node_LR(NodeKind kind, Node *lhs, Node *rhs) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = kind;
 	node->lhs = lhs;
@@ -95,14 +111,14 @@ Node *new_node_LR(NodeKind kind, Node *lhs, Node *rhs) {
 	return node;
 }
 
-Node *new_node_set_num(int val) {
+static Node *new_node_set_num(int val) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_NUM;
 	node->val = val;
 	return node;
 }
 
-Node *new_node_if(Node *condition, Node *then_stmt, Node *else_stmt) {
+static Node *new_node_if(Node *condition, Node *then_stmt, Node *else_stmt) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_IF;
 	node->condition = condition;
@@ -111,7 +127,7 @@ Node *new_node_if(Node *condition, Node *then_stmt, Node *else_stmt) {
 	return node;
 }
 
-Node *new_node_for(Node *init, Node *condition, Node *loop) {
+static Node *new_node_for(Node *init, Node *condition, Node *loop) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_FOR;
 	node->init = init;
@@ -120,7 +136,7 @@ Node *new_node_for(Node *init, Node *condition, Node *loop) {
 	return node;
 }
 
-void set_node_kind(Node *node, NodeKind kind) {
+static void set_node_kind(Node *node, NodeKind kind) {
 	node->kind = kind;
 }
 
@@ -133,7 +149,7 @@ static Node *stmt(void);
 static Node *pre_stmt(void);
 static Node *new_add(Node *node1, Node *node2);
 
-Node *read_funcall(Token *name) {
+static Node *read_funcall(Token *name) {
 	if (!consume("(")) return NULL;
 	next();
 	Node *node = calloc(1, sizeof(Node));
@@ -149,7 +165,7 @@ Node *read_funcall(Token *name) {
 	return node;
 }
 
-Type *read_array(Type *ty) {
+static Type *read_array(Type *ty) {
 	if (!consume_nxt("[")) return ty;
 	Type *now = calloc(1, sizeof(Type));
 	now->ty = TP_ARRAY;
@@ -161,7 +177,7 @@ Type *read_array(Type *ty) {
 	return now;
 }
 
-Node *read_basetype() {
+static Node *read_basetype() {
 	if (consume_d_type() == 0) return NULL;
 	int type_id = get_d_type_id();
 	Node *node = calloc(1, sizeof(Node));
@@ -180,13 +196,13 @@ Node *read_basetype() {
 	return node;
 }
 
-Node *read_return(void) {
+static Node *read_return(void) {
 	Node *res = new_node_LR(ND_RETURN, expr(), NULL);
 	expect_nxt(";");
 	return res;
 }
 
-Node *read_if(void) {
+static Node *read_if(void) {
 	expect_nxt("(");
 	Node *res = new_node_if(expr(), NULL, NULL);
 	expect_nxt(")");
@@ -199,7 +215,7 @@ Node *read_if(void) {
 	return res;
 }
 
-Node *read_while(void) {
+static Node *read_while(void) {
 	expect_nxt("(");
 	Node *res = new_node_LR(ND_WHILE, expr(), NULL);
 	expect_nxt(")");
@@ -207,7 +223,7 @@ Node *read_while(void) {
 	return res;
 }
 
-Node *read_for(void) {
+static Node *read_for(void) {
 	Node *res = new_node_for(NULL, NULL, NULL);
 	expect_nxt("(");
 	if (!consume_nxt(";")) {
@@ -226,7 +242,7 @@ Node *read_for(void) {
 	return res;
 }
 
-Node *read_cntrl_flow(void) {
+static Node *read_cntrl_flow(void) {
 	if (!consume_cntrl()) return NULL;
 	int cntrl_id = get_cntrl_id();
 	next();
@@ -251,7 +267,7 @@ Node *read_cntrl_flow(void) {
 	return node;
 }
 
-Node *read_block(void) {
+static Node *read_block(void) {
 	if (!consume("{")) return NULL;
 	next();
 	Node *res = new_node_LR(ND_BLOCK, NULL, NULL);
@@ -264,7 +280,8 @@ Node *read_block(void) {
 	now->next = NULL;
 	return res;
 }
-bool read_argument(Function *func) {
+
+static bool read_argument(Function *func) {
 	// expect_nxt("(");
 	if (!consume_nxt("(")) return false;
 	Node **now_arg = &(func->arg);
@@ -288,7 +305,7 @@ bool read_argument(Function *func) {
 	return true;
 }
 
-void read_stmt(Function *func) {
+static void read_stmt(Function *func) {
 	expect_nxt("{");
 	Node **now = &(func->stmt);
 	while (!consume_nxt("}")) {
@@ -298,7 +315,7 @@ void read_stmt(Function *func) {
 	}
 }
 
-Node *primary(void) {
+static Node *primary(void) {
 	// "(" expression ")"
 	if (consume_nxt("(")) {
 		Node *node = expr();
@@ -319,7 +336,7 @@ Node *primary(void) {
 	return unary();
 }
 
-Node *postfix(void) {
+static Node *postfix(void) {
 	Node *node1 = primary();
 	while (consume_nxt("[")) {
 		Node *node2 = expr();
@@ -330,7 +347,7 @@ Node *postfix(void) {
 	return node1;
 }
 
-Node *unary(void) {
+static Node *unary(void) {
 	if (consume_nxt("+")) {
 		Node *node = primary();
 		return node;
@@ -352,7 +369,7 @@ Node *unary(void) {
 	}
 }
 
-Node *mul(void) {
+static Node *mul(void) {
 	Node *node = unary();
 	for (;;) {
 		if (consume_nxt("*")) node = new_node_LR(ND_MUL, node, unary());
@@ -361,7 +378,7 @@ Node *mul(void) {
 	}
 }
 
-Node *new_add(Node *node1, Node *node2) {
+static Node *new_add(Node *node1, Node *node2) {
 	type_analyzer(node1);
 	type_analyzer(node2);
 	if (is_int(node1->type) && is_int(node2->type)) {
@@ -383,7 +400,7 @@ Node *new_add(Node *node1, Node *node2) {
 	return NULL;
 }
 
-Node *new_sub(Node *node1, Node *node2) {
+static Node *new_sub(Node *node1, Node *node2) {
 	type_analyzer(node1);
 	type_analyzer(node2);
 	if (is_int(node1->type) && is_int(node2->type)) {
@@ -399,7 +416,7 @@ Node *new_sub(Node *node1, Node *node2) {
 	return NULL;
 }
 
-Node *add(void) {
+static Node *add(void) {
 	Node *node = mul();
 	for (;;) {
 		if (consume_nxt("+")) node = new_add(node, mul());
@@ -408,7 +425,7 @@ Node *add(void) {
 	}
 }
 
-Node *relational(void) {
+static Node *relational(void) {
 	Node *node = add();
 	for (;;) {
 		if (consume_nxt(">=")) node = new_node_LR(ND_GE, node, add());
@@ -419,7 +436,7 @@ Node *relational(void) {
 	}
 }
 
-Node *equality(void) {
+static Node *equality(void) {
 	Node *node = relational();
 	for(;;) {
 		if (consume_nxt("==")) node = new_node_LR(ND_EQ, node, relational());
@@ -428,18 +445,18 @@ Node *equality(void) {
 	}
 }
 
-Node *assign(void) {
+static Node *assign(void) {
 	Node *node = equality();
 	if (consume_nxt("=")) node = new_node_LR(ND_ASSIGN, node, assign());
 	return node;
 }
 
-Node *expr(void) {
+static Node *expr(void) {
 	Node *node = assign();
 	return node;
 }
 
-Node *declaration(void) {
+static Node *declaration(void) {
 	Node *node = read_basetype();
 	if (node == NULL) return NULL;
 	// add pointer
@@ -465,7 +482,7 @@ Node *declaration(void) {
 	return new_node_LR(ND_ASSIGN, node, r);
 }
 
-Node *stmt(void) {
+static Node *stmt(void) {
 	Node *node;
 	// control flow
 	Node *cntrl = read_cntrl_flow();
@@ -529,14 +546,16 @@ static Function *gvar_or_func_def(void) {
 	return NULL;
 }
 
-static void lvar_init(void) {
-	lvar_list = calloc(1, sizeof(LVar));
+static void var_init(void) {
+	lvar_list = calloc(1, sizeof(Var));
 	lvar_list->type = calloc(1, sizeof(Type));
+	gvar_list = calloc(1, sizeof(Var));
+	gvar_list->type = calloc(1, sizeof(Type));
 }
 
 void program(void) {
 	while (!at_eof()) {
-		lvar_init();
+		var_init();
 		func_gen(gvar_or_func_def());
 	}
 }

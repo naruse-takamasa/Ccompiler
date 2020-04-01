@@ -146,9 +146,9 @@ struct Type {
 	size_t array_size;
 };
 
-typedef struct LVar LVar;
+typedef struct Var Var;
 
-struct LVar {
+struct Var {
 	LVar *next;
 	char *name;
 	int len;
