@@ -456,7 +456,7 @@ static Node *expr(void) {
 	return node;
 }
 
-static Node *declaration(void) {
+static Node *lvar_declaration(void) {
 	Node *node = read_basetype();
 	if (node == NULL) return NULL;
 	// add pointer
@@ -488,7 +488,7 @@ static Node *stmt(void) {
 	Node *cntrl = read_cntrl_flow();
 	if (cntrl != NULL) return cntrl;
 	// declaration
-	Node *dec = declaration();
+	Node *dec = lvar_declaration();
 	if (dec != NULL) return dec;
 	// block
 	Node *block = read_block();
@@ -523,7 +523,7 @@ static Function *func_def(Type *base, char *name) {
 	return func;
 }
 
-static void add_gvar(Type *base, char *name, int name_len) {
+static void gvar_declaration(Type *base, char *name, int name_len) {
 	// TODO:
 }
 
@@ -542,7 +542,7 @@ static Function *gvar_or_func_def(void) {
 	Function *func = func_def(basetype->type, name);
 	if (func != NULL) return func;
 	// global variable
-	add_gvar(basetype->type, name, name_len);
+	gvar_declaration(basetype->type, name, name_len);
 	return NULL;
 }
 
