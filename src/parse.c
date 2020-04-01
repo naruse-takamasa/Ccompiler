@@ -111,8 +111,9 @@ Type *new_type(TypeKind typekind, Type *ptr_to, int sz) {
 	return type;
 }
 
-Node *expr();
-Node *unary();
+Node *expr(void);
+Node *unary(void);
+Node *stmt(void);
 
 Node *read_funcall(Token *name) {
 	if (!consume("(")) return NULL;
@@ -306,57 +307,82 @@ Node *declaration(void) {
 	return new_node_LR(ND_ASSIGN, node, r);
 }
 
+Node *read_return(void) {
+	Node *res = new_node_LR(ND_RETURN, expr(), NULL);
+	expect_nxt(";");
+	return res;
+}
+
+Node *read_if(void) {
+	expect_nxt("(");
+	Node *res = new_node_if(expr(), NULL, NULL);
+	expect_nxt(")");
+	res->then_stmt = stmt();
+	int next_control_id = -1;
+	if (consume_cntrl()) next_control_id = get_cntrl_id();
+	if (next_control_id == 2) {
+		res->else_stmt = stmt();
+	}
+	return res;
+}
+
+Node *read_while(void) {
+	expect_nxt("(");
+	Node *res = new_node_LR(ND_WHILE, expr(), NULL);
+	expect_nxt(")");
+	res->rhs = stmt();
+	return res;
+}
+
+Node *read_for(void) {
+	Node *res = new_node_for(NULL, NULL, NULL);
+	expect_nxt("(");
+	if (!consume_nxt(";")) {
+		res->init = expr();
+		expect_nxt(";");
+	}
+	if (!consume_nxt(";")) {
+		res->condition = expr();
+		expect_nxt(";");
+	}
+	if (!consume_nxt(")")) {
+		res->loop = expr();
+		expect_nxt(")");
+	}
+	res->then_stmt = stmt();
+	return res;
+}
+
+Node *read_cntrl_flow(void) {
+	if (!consume_cntrl()) return NULL;
+	int cntrl_id = get_cntrl_id();
+	next();
+	Node *node;
+	switch (cntrl_id) {
+		case 0: // return
+			node = read_return();
+			break;
+		case 1: // if
+			node = read_if();
+			break;
+		case 3: // while
+			node = read_while();
+			break;
+		case 4: // for
+			node = read_for();
+			break;
+		default:
+			error_at(token->str, "何その制御構文\n");
+			break;
+	}
+	return node;
+}
+
 Node *stmt(void) {
 	Node *node;
 	// control flow
-	if (consume_cntrl()) {
-		int control_id = get_cntrl_id();
-		next();
-		switch (control_id)
-		{
-		case 0: // return
-			node = new_node_LR(ND_RETURN, expr(), NULL);
-			expect_nxt(";");
-			break;
-		case 1: // if
-			expect_nxt("(");
-			node = new_node_if(expr(), NULL, NULL);
-			expect_nxt(")");
-			node->then_stmt = stmt();
-			int next_control_id = -1;
-			if (consume_cntrl()) next_control_id = get_cntrl_id();
-			if (next_control_id == 2) {
-				node->else_stmt = stmt();
-			}
-			break;
-		case 3: // while
-			expect_nxt("(");
-			node = new_node_LR(ND_WHILE, expr(), NULL);
-			expect_nxt(")");
-			node->rhs = stmt();
-			break;
-		case 4: // for
-			node = new_node_for(NULL, NULL, NULL);
-			expect_nxt("(");
-			if (!consume_nxt(";")) {
-				node->init = expr();
-				expect_nxt(";");
-			}
-			if (!consume_nxt(";")) {
-				node->condition = expr();
-				expect_nxt(";");
-			}
-			if (!consume_nxt(")")) {
-				node->loop = expr();
-				expect_nxt(")");
-			}
-			node->then_stmt = stmt();
-			break;
-		default:
-			break;
-		}
-		return node;
-	}
+	Node *cntrl = read_cntrl_flow();
+	if (cntrl != NULL) return cntrl;
 	// declaration
 	Node *dec = declaration();
 	if (dec != NULL) return dec;
