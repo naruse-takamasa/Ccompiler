@@ -378,6 +378,20 @@ Node *read_cntrl_flow(void) {
 	return node;
 }
 
+Node *read_block(void) {
+	if (!consume("{")) return NULL;
+	next();
+	Node *res = new_node_LR(ND_BLOCK, NULL, NULL);
+	Node *now = res;
+	while (!consume_nxt("}")) {
+		Node *statement = stmt();
+		now->next = statement;
+		now = statement;
+	}
+	now->next = NULL;
+	return res;
+}
+
 Node *stmt(void) {
 	Node *node;
 	// control flow
@@ -386,21 +400,12 @@ Node *stmt(void) {
 	// declaration
 	Node *dec = declaration();
 	if (dec != NULL) return dec;
+	// block
+	Node *block = read_block();
+	if (block != NULL) return block;
 	// only ";"
 	if (consume_nxt(";")) {
 		node = NULL;
-		return node;
-	}
-	// block
-	if (consume_nxt("{")) {
-		node = new_node_LR(ND_BLOCK, NULL, NULL);
-		Node *now = node;
-		while (!consume_nxt("}")) {
-			Node *statement = stmt();
-			now->next = statement;
-			now = statement;
-		}
-		now->next = NULL;
 		return node;
 	}
 	// expression
