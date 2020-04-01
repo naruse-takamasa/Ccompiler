@@ -287,13 +287,13 @@ Type *read_array(Type *ty) {
 	return now;
 }
 
-Node *declaration(void) {
+Node *read_basetype() {
 	if (consume_d_type() == 0) return NULL;
 	int type_id = get_d_type_id();
 	Node *node = calloc(1, sizeof(Node));
 	switch (type_id)
 	{
-	case 0:
+	case 0: // int
 		node->type = calloc(1, sizeof(Type));
 		node->type->ty = TP_INT;
 		node->type->_sizeof = 8;
@@ -303,20 +303,29 @@ Node *declaration(void) {
 		break;
 	}
 	next();
+	return node;
+}
+
+Node *declaration(void) {
+	Node *node = read_basetype();
+	if (node == NULL) return NULL;
+	// add pointer
 	while (consume_nxt("*")) {
 		Type *now_type = new_type(TP_PTR, node->type, 8);
 		node->type = now_type;
 	}
+	// variable name
 	Token *var_name = consume_ident_nxt();
 	node->type = read_array(node->type);
 	if (consume_nxt(";")) {
-		node->offset = add_lvar(var_name, node->type);
+		// declaration only
+		add_lvar(var_name, node->type);
 		node->kind = ND_NULL;
 		return node;
 	}
+	// variable initialization
 	expect_nxt("=");
-	node->offset = add_lvar(var_name, node->type);
-	set_node_kind(node, ND_LVAR);
+	node = new_node_lvar_dec(var_name, node->type);
 	Node *r = equality();
 	consume_nxt(";");
 	type_analyzer(r);

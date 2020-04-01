@@ -16,7 +16,9 @@ int main(int argc, char **argv) {
 	if (argc != 2) {
 		fprintf(stderr, "argc is not equal 2\n");
 		return 1;
-	} else fprintf(stderr, "input code : %s\n", argv[1]);
+	} else {
+		// fprintf(stderr, "input code : %s\n", argv[1]);
+	}
 
 	user_input = argv[1];
 	token = tokenize(user_input);
