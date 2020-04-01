@@ -62,25 +62,25 @@ struct Token {
 extern Token *token;
 
 Token *tokenize(char *p);
-void next();
+void next(void);
 bool consume(char *op);
 bool consume_nxt(char *op);
-bool consume_ident();
-Token *consume_ident_nxt();
-bool is_ident();
-int consume_cntrl_nxt();
-int consume_cntrl();
-int get_cntrl_id();
-int get_d_type_id();
-int consume_d_type_nxt();
-int consume_d_type();
-int is_cntrl();
-int is_d_type();
+bool consume_ident(void);
+Token *consume_ident_nxt(void);
+bool is_ident(void);
+int consume_cntrl_nxt(void);
+int consume_cntrl(void);
+int get_cntrl_id(void);
+int get_d_type_id(void);
+int consume_d_type_nxt(void);
+int consume_d_type(void);
+int is_cntrl(char *p);
+int is_d_type(char *p);
 void expect_nxt(char *op);
-int expect_num_nxt();
-void expect_ident_nxt();
+int expect_num_nxt(void);
+void expect_ident_nxt(void);
 void expect_ident(void);
-bool at_eof();
+bool at_eof(void);
 
 ////////////////////////////////////////////////////////////////////////////
 // parse.c

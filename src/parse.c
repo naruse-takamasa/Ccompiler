@@ -15,7 +15,13 @@ static LVar *lvar_list;
 ////////////////////////////////////////////////////////////////////////////
 // local variable tool
 ////////////////////////////////////////////////////////////////////////////
-
+// TODO:
+/**
+ * @brief tok->strと一致するようなローカル変数があるか探して、あるならLVar型を返す
+ * 
+ * @param tok 
+ * @return LVar* 
+ */
 LVar *find_lvar(Token *tok) {
 	for (LVar *now = lvar_list; now; now = now->next) {
 		if (tok->len == now->len && memcmp(tok->str, now->name, tok->len) == 0) {
@@ -121,11 +127,11 @@ void set_node_kind(Node *node, NodeKind kind) {
 ////////////////////////////////////////////////////////////////////////////
 // construct abstract syntax tree
 ////////////////////////////////////////////////////////////////////////////
-Node *expr(void);
-Node *unary(void);
-Node *stmt(void);
-Node *pre_stmt(void);
-Node *new_add(Node *node1, Node *node2);
+static Node *expr(void);
+static Node *unary(void);
+static Node *stmt(void);
+static Node *pre_stmt(void);
+static Node *new_add(Node *node1, Node *node2);
 
 Node *read_funcall(Token *name) {
 	if (!consume("(")) return NULL;
@@ -258,8 +264,9 @@ Node *read_block(void) {
 	now->next = NULL;
 	return res;
 }
-void read_argument(Function *func) {
-	expect_nxt("(");
+bool read_argument(Function *func) {
+	// expect_nxt("(");
+	if (!consume_nxt("(")) return false;
 	Node **now_arg = &(func->arg);
 	int arg_cnt = 0;
 	while (!consume_nxt(")")) {
@@ -278,6 +285,7 @@ void read_argument(Function *func) {
 		consume_nxt(",");
 	}
 	func->arg_count = arg_cnt;
+	return true;
 }
 
 void read_stmt(Function *func) {
@@ -479,29 +487,46 @@ Node *stmt(void) {
 	return node;
 }
 
-Node *pre_stmt(void) {
+static Node *pre_stmt(void) {
 	Node *node = stmt();
 	type_analyzer(node);
 	return node;
 }
 
-static Function *func_def(void) {
+static Function *func_def(Type *base, char *name) {
 	Function *func = calloc(1, sizeof(Function));
-	// function type
-	Node *basetype = read_basetype();
-	if (basetype == NULL) error_at(token->str, "型を宣言しろ\n");
-	func->type = basetype->type;
-	// function name
-	expect_ident();
-	func->name = strndup(token->str, token->len);
-	next();
+	func->name = name;
+	func->type = base;
 	// argument
-	read_argument(func);
+	if (!read_argument(func)) return NULL;
 	// statement
 	read_stmt(func);
 	// calcurate total offset
 	func->total_offset = lvar_list->offset + lvar_list->type->_sizeof;
 	return func;
+}
+
+static void add_gvar(Type *base, char *name, int name_len) {
+	// TODO:
+}
+
+static Function *gvar_or_func_def(void) {
+	Node *basetype = read_basetype();
+	if (basetype == NULL) error_at(token->str, "型を宣言しろ\n");
+	while (consume_nxt("*")) {
+		// TODO:
+	}
+	expect_ident();
+	char *name = strndup(token->str, token->len);
+	int name_len = token->len;
+	next();
+
+	// function define
+	Function *func = func_def(basetype->type, name);
+	if (func != NULL) return func;
+	// global variable
+	add_gvar(basetype->type, name, name_len);
+	return NULL;
 }
 
 static void lvar_init(void) {
@@ -512,6 +537,6 @@ static void lvar_init(void) {
 void program(void) {
 	while (!at_eof()) {
 		lvar_init();
-		func_gen(func_def());
+		func_gen(gvar_or_func_def());
 	}
 }

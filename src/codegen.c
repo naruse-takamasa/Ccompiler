@@ -238,6 +238,7 @@ void gen(Node *node) {
 }
 
 void func_gen(Function *func) {
+	if (func == NULL) return;
 	printf("%s:\n", func->name);
 
 	// prologue
