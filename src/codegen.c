@@ -39,8 +39,12 @@ static void addr_gen(Node *node) {
 		gen(node->lhs);
 		return;
 	}
-	if (node->kind != ND_LVAR) {
+	if (node->kind != ND_LVAR && node->kind != ND_GVAR) {
 		error("代入の左辺値が変数ではありません\n");
+	}
+	if (node->kind == ND_GVAR) {
+		printf("  push offset %s\n", node->var_name);
+		return;
 	}
 	printf("  mov rax, rbp\n");
 	printf("  sub rax, %d\n", Total_offset + 8);
@@ -55,6 +59,10 @@ static void gen(Node *node) {
 		printf("  push %d\n", node->val);
 		return;
 	case ND_LVAR:
+		addr_gen(node);
+		if (node->type->ty != TP_ARRAY) load();
+		return;
+	case ND_GVAR:
 		addr_gen(node);
 		if (node->type->ty != TP_ARRAY) load();
 		return;
@@ -237,8 +245,22 @@ static void gen(Node *node) {
 	printf("  push rax\n");
 }
 
+static void gvar_gen() {
+	printf(".data\n");
+	for (Var *now = gvar_list; now->is_write == false; now = now->next) {
+		printf("%s:\n", now->name);
+		printf("  .zero %d\n", now->type->_sizeof);
+		now->is_write = true;
+	}
+}
+
 void func_gen(Function *func) {
-	if (func == NULL) return;
+	if (func == NULL) {
+		gvar_gen();
+		return;
+	}
+	printf(".text\n");
+	printf(".global %s\n", func->name);
 	printf("%s:\n", func->name);
 
 	// prologue

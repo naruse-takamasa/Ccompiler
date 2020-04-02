@@ -129,6 +129,7 @@ typedef enum {
 	ND_INT,
 	// 変数宣言のみ
 	ND_NULL, // 27
+	ND_GVAR,
 } NodeKind;
 
 typedef enum {
@@ -154,6 +155,7 @@ struct Var {
 	int len;
 	int offset;
 	Type *type;
+	bool is_write;
 };
 
 typedef struct Node Node;
@@ -199,6 +201,8 @@ struct Node {
 	char *funcname;
 	Node *next_stmt;
 	Node *next_arg;
+	//
+	char *var_name;
 };
 
 typedef struct Function Function;
@@ -217,6 +221,8 @@ struct Function {
 	Var *local;
 	Type *type;
 };
+
+extern Var *gvar_list;
 
 void program(void);
 

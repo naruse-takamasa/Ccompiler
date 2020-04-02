@@ -11,10 +11,10 @@
 #include "SverigeCC.h"
 
 static Var *lvar_list;
-static Var *gvar_list;
+Var *gvar_list;
 
 ////////////////////////////////////////////////////////////////////////////
-// local variable tool
+// variable tool
 ////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -44,7 +44,21 @@ static Var *find_lvar(Token *tok) {
 			return now;
 		}
 	}
-	return find_gvar(tok);
+	return NULL;
+}
+
+static int add_gvar(Token *tok, Type *type) {
+	Var *gvar = find_gvar(tok);
+	if (gvar) error_at(tok->str, "変数名がかぶってます(add_gvar)\n");
+	gvar = calloc(1, sizeof(Var));
+	gvar->name = strndup(tok->str, tok->len);
+	gvar->len = tok->len;
+	if (gvar_list->offset == 0 && gvar_list->type->_sizeof == 0) gvar->offset = 8;
+	else gvar->offset = gvar_list->offset + gvar_list->type->_sizeof;
+	gvar->next = gvar_list;
+	gvar->type = type;
+	gvar_list = gvar;
+	return gvar->offset;
 }
 
 /**
@@ -74,15 +88,23 @@ static int add_lvar(Token *tok, Type *type) {
  * @param tok 
  * @return Node* 
  */
-static Node *new_node_lvar(Token *tok) {
+static Node *new_node_var(Token *tok) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
-	Var *lvar = find_lvar(tok);
-	if (lvar) {
-		node->offset = lvar->offset;
-		node->type = lvar->type;
-	} else error("%sは知らん\n", tok->str);
-	return node;
+	Var *var = find_lvar(tok);
+	if (var) {
+		node->offset = var->offset;
+		node->type = var->type;
+		return node;
+	} 
+	var = find_gvar(tok);
+	if (var) {
+		node->kind = ND_GVAR;
+		node->type = var->type;
+		node->var_name = var->name;
+		return node;
+	} else error("知らない変数です\n");
+	return NULL;
 }
 
 /**
@@ -328,7 +350,7 @@ static Node *primary(void) {
 		expect_ident_nxt();
 		Node *funcall = read_funcall(name);
 		if (funcall != NULL) return funcall;
-		else return new_node_lvar(name);
+		else return new_node_var(name);
 	}
 	// number
 	// マジで????
@@ -523,8 +545,11 @@ static Function *func_def(Type *base, char *name) {
 	return func;
 }
 
-static void gvar_declaration(Type *base, char *name, int name_len) {
+static void gvar_declaration(Token *tok, Type *base) {
 	// TODO:
+	base = read_array(base);
+	add_gvar(tok, base);
+	expect_nxt(";");
 }
 
 static Function *gvar_or_func_def(void) {
@@ -535,27 +560,32 @@ static Function *gvar_or_func_def(void) {
 	}
 	expect_ident();
 	char *name = strndup(token->str, token->len);
-	int name_len = token->len;
+	// int name_len = token->len;
+	Token *tok = token;
 	next();
-
 	// function define
 	Function *func = func_def(basetype->type, name);
 	if (func != NULL) return func;
 	// global variable
-	gvar_declaration(basetype->type, name, name_len);
+	gvar_declaration(tok, basetype->type);
 	return NULL;
 }
 
-static void var_init(void) {
+static void lvar_init(void) {
 	lvar_list = calloc(1, sizeof(Var));
 	lvar_list->type = calloc(1, sizeof(Type));
+}
+
+static void gvar_init(void) {
 	gvar_list = calloc(1, sizeof(Var));
 	gvar_list->type = calloc(1, sizeof(Type));
+	gvar_list->is_write = true;
 }
 
 void program(void) {
+	gvar_init();
 	while (!at_eof()) {
-		var_init();
+		lvar_init();
 		func_gen(gvar_or_func_def());
 	}
 }

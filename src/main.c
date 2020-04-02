@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 	fprintf(stderr, "tokenize OK\n");
 
 	printf(".intel_syntax noprefix\n");
-	printf(".global main\n");
 	program();
+	fprintf(stderr, "output assembly\n");
 	return 0;
 }
