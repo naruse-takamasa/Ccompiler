@@ -8,19 +8,20 @@
  * @copyright Copyright (c) 2020
  * 
  */
+
 #include "SverigeCC.h"
 
-char multi_punct[][10] = {"==", "!=", ">=", "<="};
-int multi_punct_len[] = {2, 2, 2, 2};
-int multi_punct_size = 4;
+static const char multi_punct[][10] = {"==", "!=", ">=", "<="};
+static const int multi_punct_len[] = {2, 2, 2, 2};
+static const int multi_punct_size = 4;
 
-char control_flow[][10] = {"return", "if", "else", "while", "for"};
-int control_flow_len[] = {6, 2, 4, 5, 3};
-const int control_flow_size = 5;
+static const char control_flow[][10] = {"return", "if", "else", "while", "for"};
+static const int control_flow_len[] = {6, 2, 4, 5, 3};
+static const int control_flow_size = 5;
 
-char data_type[][10] = {"int"};
-int data_type_len[] = {3};
-const int data_type_size = 1;
+static const char data_type[][10] = {"int", "char"};
+static const int data_type_len[] = {3, 4};
+static const int data_type_size = 2;
 
 Token *token;
 
@@ -208,6 +209,7 @@ Token *tokenize(char *p) {
 			cur->val = strtol(p, &p, 10);
 			continue;
 		}
+		// sizeof
 		if (is_sizeof(p)) {
 			cur = new_token(TK_SIZEOF, cur, p, 6);
 			p += 6;

@@ -212,9 +212,16 @@ static Node *read_basetype() {
 	switch (type_id)
 	{
 	case 0: // int
-		node->type = calloc(1, sizeof(Type));
-		node->type->ty = TP_INT;
-		node->type->_sizeof = 8;
+		// node->type = calloc(1, sizeof(Type));
+		// node->type->ty = TP_INT;
+		// node->type->_sizeof = 8;
+		node->type = new_type(TP_INT, NULL, 8);
+		break;
+	case 1: // char
+		// node->type = calloc(1, sizeof(Type));
+		// node->type->ty = TP_CHAR;
+		// node->type->_sizeof = 1;
+		node->type = new_type(TP_CHAR, NULL, 1);
 		break;
 	default:
 		error("その型は知らん\n");
@@ -275,22 +282,23 @@ static Node *read_cntrl_flow(void) {
 	int cntrl_id = get_cntrl_id();
 	next();
 	Node *node;
-	switch (cntrl_id) {
-		case 0: // return
-			node = read_return();
-			break;
-		case 1: // if
-			node = read_if();
-			break;
-		case 3: // while
-			node = read_while();
-			break;
-		case 4: // for
-			node = read_for();
-			break;
-		default:
-			error_at(token->str, "何その制御構文\n");
-			break;
+	switch (cntrl_id)
+	{
+	case 0: // return
+		node = read_return();
+		break;
+	case 1: // if
+		node = read_if();
+		break;
+	case 3: // while
+		node = read_while();
+		break;
+	case 4: // for
+		node = read_for();
+		break;
+	default:
+		error_at(token->str, "何その制御構文\n");
+		break;
 	}
 	return node;
 }
@@ -310,7 +318,6 @@ static Node *read_block(void) {
 }
 
 static bool read_argument(Function *func) {
-	// expect_nxt("(");
 	if (!consume_nxt("(")) return false;
 	Node **now_arg = &(func->arg);
 	int arg_cnt = 0;

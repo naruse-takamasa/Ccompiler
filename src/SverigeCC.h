@@ -134,6 +134,7 @@ typedef enum {
 
 typedef enum {
 	TP_INT,
+	TP_CHAR,
 	TP_PTR,
 	TP_ARRAY,
 } TypeKind;
