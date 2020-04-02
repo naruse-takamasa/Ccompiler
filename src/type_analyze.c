@@ -20,7 +20,7 @@ Type *new_type(TypeKind typekind, Type *ptr_to, int sz) {
 }
 
 bool is_int(Type *type) {
-	return type->ty == TP_INT;
+	return type->ty == TP_INT || type->ty == TP_CHAR;
 }
 
 bool is_ptr(Type *type) {

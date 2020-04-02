@@ -129,6 +129,7 @@ typedef enum {
 	ND_INT,
 	// 変数宣言のみ
 	ND_NULL, // 27
+	// グローバル変数
 	ND_GVAR,
 } NodeKind;
 

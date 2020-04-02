@@ -96,9 +96,9 @@ static int add_lvar(Token *tok, Type *type) {
  */
 static Node *new_node_var(Token *tok) {
 	Node *node = calloc(1, sizeof(Node));
-	node->kind = ND_LVAR;
 	Var *var = find_lvar(tok);
 	if (var) {
+		node->kind = ND_LVAR;
 		node->offset = var->offset;
 		node->type = var->type;
 		return node;
@@ -193,6 +193,15 @@ static Node *read_funcall(Token *name) {
 	return node;
 }
 
+static Type *read_ptr(Type *basetype) {
+	Type *now = basetype;
+	while (consume_nxt("*")) {
+		Type *tmp = new_type(TP_PTR, now, 8);
+		now = tmp;
+	}
+	return now;
+}
+
 static Type *read_array(Type *ty) {
 	if (!consume_nxt("[")) return ty;
 	Type *now = calloc(1, sizeof(Type));
@@ -212,15 +221,9 @@ static Node *read_basetype() {
 	switch (type_id)
 	{
 	case 0: // int
-		// node->type = calloc(1, sizeof(Type));
-		// node->type->ty = TP_INT;
-		// node->type->_sizeof = 8;
 		node->type = new_type(TP_INT, NULL, 8);
 		break;
 	case 1: // char
-		// node->type = calloc(1, sizeof(Type));
-		// node->type->ty = TP_CHAR;
-		// node->type->_sizeof = 1;
 		node->type = new_type(TP_CHAR, NULL, 1);
 		break;
 	default:
@@ -323,10 +326,7 @@ static bool read_argument(Function *func) {
 	int arg_cnt = 0;
 	while (!consume_nxt(")")) {
 		Type *now = read_basetype()->type;
-		while (consume_nxt("*")) {
-			Type *now_type = new_type(TP_PTR, now, 8);
-			now = now_type;
-		}
+		now = read_ptr(now);
 		expect_ident();
 		Node *arg = new_node_lvar_dec(token, now);
 		arg->kind = ND_ARG;
@@ -495,10 +495,7 @@ static Node *lvar_declaration(void) {
 	Node *node = read_basetype();
 	if (node == NULL) return NULL;
 	// add pointer
-	while (consume_nxt("*")) {
-		Type *now_type = new_type(TP_PTR, node->type, 8);
-		node->type = now_type;
-	}
+	node->type = read_ptr(node->type);
 	// variable name
 	Token *var_name = consume_ident_nxt();
 	node->type = read_array(node->type);
@@ -567,9 +564,8 @@ static void gvar_declaration(Token *tok, Type *base) {
 static Function *gvar_or_func_def(void) {
 	Node *basetype = read_basetype();
 	if (basetype == NULL) error_at(token->str, "型を宣言しろ\n");
-	while (consume_nxt("*")) {
-		// TODO:
-	}
+	// read pointer
+	basetype->type = read_ptr(basetype->type);
 	expect_ident();
 	// read name
 	char *name = strndup(token->str, token->len);
