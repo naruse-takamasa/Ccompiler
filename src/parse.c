@@ -33,7 +33,7 @@ static Var *find_gvar(Token *tok) {
 }
 
 /**
- * @brief tok->strと一致するようなローカル変数を探す.ないならグローバル変数から探す.
+ * @brief tok->strと一致するようなローカル変数を探す
  * 
  * @param tok 
  * @return LVar* 
@@ -46,7 +46,13 @@ static Var *find_lvar(Token *tok) {
 	}
 	return NULL;
 }
-
+/**
+ * @brief グローバル変数リストに加えるだけ
+ * 
+ * @param tok 
+ * @param type 
+ * @return int 
+ */
 static int add_gvar(Token *tok, Type *type) {
 	Var *gvar = find_gvar(tok);
 	if (gvar) error_at(tok->str, "変数名がかぶってます(add_gvar)\n");
@@ -62,7 +68,7 @@ static int add_gvar(Token *tok, Type *type) {
 }
 
 /**
- * @brief 変数リストに加えるだけ
+ * @brief ローカル変数リストに加えるだけ
  * 
  * @param tok 
  * @param type 
@@ -125,9 +131,13 @@ static Node *new_node_lvar_dec(Token *tok, Type *type) {
 // new node tool
 ////////////////////////////////////////////////////////////////////////////
 
+static void set_node_kind(Node *node, NodeKind kind) {
+	node->kind = kind;
+}
+
 static Node *new_node_LR(NodeKind kind, Node *lhs, Node *rhs) {
 	Node *node = calloc(1, sizeof(Node));
-	node->kind = kind;
+	set_node_kind(node, kind);
 	node->lhs = lhs;
 	node->rhs = rhs;
 	return node;
@@ -135,14 +145,14 @@ static Node *new_node_LR(NodeKind kind, Node *lhs, Node *rhs) {
 
 static Node *new_node_set_num(int val) {
 	Node *node = calloc(1, sizeof(Node));
-	node->kind = ND_NUM;
+	set_node_kind(node, ND_NUM);
 	node->val = val;
 	return node;
 }
 
 static Node *new_node_if(Node *condition, Node *then_stmt, Node *else_stmt) {
 	Node *node = calloc(1, sizeof(Node));
-	node->kind = ND_IF;
+	set_node_kind(node, ND_IF);
 	node->condition = condition;
 	node->then_stmt = then_stmt;
 	node->else_stmt = else_stmt;
@@ -151,15 +161,11 @@ static Node *new_node_if(Node *condition, Node *then_stmt, Node *else_stmt) {
 
 static Node *new_node_for(Node *init, Node *condition, Node *loop) {
 	Node *node = calloc(1, sizeof(Node));
-	node->kind = ND_FOR;
+	set_node_kind(node, ND_FOR);
 	node->init = init;
 	node->condition = condition;
 	node->loop = loop;
 	return node;
-}
-
-static void set_node_kind(Node *node, NodeKind kind) {
-	node->kind = kind;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -546,7 +552,6 @@ static Function *func_def(Type *base, char *name) {
 }
 
 static void gvar_declaration(Token *tok, Type *base) {
-	// TODO:
 	base = read_array(base);
 	add_gvar(tok, base);
 	expect_nxt(";");
@@ -559,8 +564,8 @@ static Function *gvar_or_func_def(void) {
 		// TODO:
 	}
 	expect_ident();
+	// read name
 	char *name = strndup(token->str, token->len);
-	// int name_len = token->len;
 	Token *tok = token;
 	next();
 	// function define
