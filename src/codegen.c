@@ -147,38 +147,7 @@ static void gen(Node *node) {
 				gen(now);
 				arg_count++;
 			}
-			// Function *func = find_func(node->funcname);
-			// int arg1_cnt = 0, arg8_cnt = 0;
-			// int arg_kind[100] = {};
-			// int idx = 0;
-			// for (Node *now = func->arg; now; now = now->next_arg) {
-			// 	if (is_char(now->type)) {
-			// 		arg_kind[idx] = 1;
-			// 		arg1_cnt++;
-			// 	} else {
-			// 		arg_kind[idx] = 8;
-			// 		arg8_cnt++;
-			// 	}
-			// 	idx++;
-			// }
-			// for (int i = idx - 1; i >= 0; i--) {
-			// 	switch (arg_kind[i])
-			// 	{
-			// 	case 1:
-			// 		printf("  pop %s\n", argreg1[arg1_cnt - 1]);
-			// 		arg1_cnt--;
-			// 		break;
-			// 	case 8:
-			// 		printf("  pop %s\n", argreg8[arg8_cnt - 1]);
-			// 		arg8_cnt--;
-			// 		break;
-			// 	default:
-			// 		error("なにその型(gen)\n");
-			// 		break;
-			// 	}
-			// }
 			for (int i = arg_count - 1; i >= 0; i--) {
-				// TODO:intとcharに対応すること
 				printf("  pop %s\n", argreg8[i]);
 			}
 			// 仕様上rspが16の倍数で関数をcallしなくてはならない
@@ -316,16 +285,8 @@ void func_gen(Function *func) {
 
 	Total_offset = func->total_offset;
 	// このアドレスの並びであってるのかな-??
-	// for (int i = 0; i < func->arg_count; i++) {
-	// 	printf("  mov rax, rbp\n");
-	// 	printf("  sub rax, %d\n", Total_offset);
-	// 	printf("  add rax, %d\n", i * 8);
-	// 	printf("  mov [rax], %s\n", argreg[i]);
-	// }
-	fprintf(stderr, "arg\n");
 	int arg1_idx = 0, arg8_idx = 0;
 	for (Node *now = func->arg; now; now = now->next_arg) {
-		// TODO:
 		printf("  mov rax, rbp\n");
 		printf("  sub rax, %d\n", Total_offset + 8);
 		printf("  add rax, %d\n", now->offset);
@@ -333,6 +294,7 @@ void func_gen(Function *func) {
 		else printf("  mov [rax], %s\n", argreg8[arg8_idx++]);
 	}
 
+	// statement
 	for (Node *now = func->stmt; now; now = now->next_stmt) {
 		gen(now);
 	}
