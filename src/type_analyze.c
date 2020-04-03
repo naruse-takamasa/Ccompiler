@@ -31,6 +31,10 @@ bool is_array(Type *type) {
 	return type->ty == TP_ARRAY;
 }
 
+bool is_char(Type *type) {
+	return type->ty == TP_CHAR;
+}
+
 void type_analyzer(Node *node) {
 	if (node == NULL) return;
 	type_analyzer(node->lhs);

@@ -12,10 +12,21 @@
 
 static Var *lvar_list;
 Var *gvar_list;
+Function *func_list;
 
 ////////////////////////////////////////////////////////////////////////////
 // variable tool
 ////////////////////////////////////////////////////////////////////////////
+
+Function *find_func(char *name) {
+	for (Function *now = func_list; now; now = now->next) {
+		if (now->name != NULL && strcmp(name, now->name) == 0) {
+			return now;
+		}
+	}
+	// error("そんな関数はない\n");
+	return NULL;
+}
 
 /**
  * @brief tok->strと一致するようなグローバル変数を探す
@@ -88,6 +99,13 @@ static int add_lvar(Token *tok, Type *type) {
 	return lvar->offset;
 }
 
+static void add_func(Function *func) {
+	Function *f = find_func(func->name);
+	if (f) error("関数名がかぶってます(add_func)\n");
+	func->next = func_list;
+	func_list = func;
+}
+
 /**
  * @brief tok->strという変数のオフセットを計算し、ノードを作成
  * 
@@ -124,6 +142,7 @@ static Node *new_node_lvar_dec(Token *tok, Type *type) {
 	Node *node = calloc(1, sizeof(Node));
 	node->kind = ND_LVAR;
 	node->offset = add_lvar(tok, type);
+	node->type = type;
 	return node;
 }
 
@@ -552,6 +571,7 @@ static Function *func_def(Type *base, char *name) {
 	read_stmt(func);
 	// calcurate total offset
 	func->total_offset = lvar_list->offset + lvar_list->type->_sizeof;
+	add_func(func);
 	return func;
 }
 
@@ -590,8 +610,14 @@ static void gvar_init(void) {
 	gvar_list->is_write = true;
 }
 
+static void func_init(void) {
+	func_list = calloc(1, sizeof(Function));
+	func_list->type = calloc(1, sizeof(Type));
+}
+
 void program(void) {
 	gvar_init();
+	func_init();
 	while (!at_eof()) {
 		lvar_init();
 		func_gen(gvar_or_func_def());

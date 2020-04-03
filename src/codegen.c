@@ -10,22 +10,31 @@
  */
 #include "SverigeCC.h"
 
-static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static char *argreg1[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+static char *argreg8[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static int Label_id = 0;
 static int Total_offset;
 
 static void gen(Node *node);
 
-static void load() {
+static void load(Type *type) {
 	printf("  pop rax\n");
-	printf("  mov rax, [rax]\n");
-	printf("  push rax\n");
+	if (type->_sizeof == 8) {
+		printf("  mov rax, [rax]\n");
+	} else {
+		printf("  movsx rax, byte ptr [rax]\n");
+	}
+		printf("  push rax\n");
 }
 
-static void store() {
+static void store(Type *type) {
 	printf("  pop rdi\n");
 	printf("  pop rax\n");
-	printf("  mov [rax], rdi\n");
+	if (type->_sizeof == 8) {
+		printf("  mov [rax], rdi\n");
+	} else {
+		printf("  mov [rax], dil\n");
+	}
 	printf("  push rdi\n");
 }
 
@@ -60,16 +69,16 @@ static void gen(Node *node) {
 		return;
 	case ND_LVAR:
 		addr_gen(node);
-		if (node->type->ty != TP_ARRAY) load();
+		if (node->type->ty != TP_ARRAY) load(node->type);
 		return;
 	case ND_GVAR:
 		addr_gen(node);
-		if (node->type->ty != TP_ARRAY) load();
+		if (node->type->ty != TP_ARRAY) load(node->type);
 		return;
 	case ND_ASSIGN:
 		addr_gen(node->lhs);
 		gen(node->rhs);
-		store();
+		store(node->type);
 		return;
 	case ND_RETURN:
 		gen(node->lhs);
@@ -128,7 +137,7 @@ static void gen(Node *node) {
 			printf("  pop rax\n");
 		}
 		// main関数で"  pop rax"が必ず実行されるので、for文で全部"  pop rax"するとマズい.
-		// だから、"  push rax"して直近に取り出されたやつだけまたpushしてある.
+		// だから、"  push rax"して直近に取り出されたやつだけまたpushする.
 		printf("  push rax\n");
 		return;
 	case ND_FUNCALL:
@@ -138,8 +147,39 @@ static void gen(Node *node) {
 				gen(now);
 				arg_count++;
 			}
+			// Function *func = find_func(node->funcname);
+			// int arg1_cnt = 0, arg8_cnt = 0;
+			// int arg_kind[100] = {};
+			// int idx = 0;
+			// for (Node *now = func->arg; now; now = now->next_arg) {
+			// 	if (is_char(now->type)) {
+			// 		arg_kind[idx] = 1;
+			// 		arg1_cnt++;
+			// 	} else {
+			// 		arg_kind[idx] = 8;
+			// 		arg8_cnt++;
+			// 	}
+			// 	idx++;
+			// }
+			// for (int i = idx - 1; i >= 0; i--) {
+			// 	switch (arg_kind[i])
+			// 	{
+			// 	case 1:
+			// 		printf("  pop %s\n", argreg1[arg1_cnt - 1]);
+			// 		arg1_cnt--;
+			// 		break;
+			// 	case 8:
+			// 		printf("  pop %s\n", argreg8[arg8_cnt - 1]);
+			// 		arg8_cnt--;
+			// 		break;
+			// 	default:
+			// 		error("なにその型(gen)\n");
+			// 		break;
+			// 	}
+			// }
 			for (int i = arg_count - 1; i >= 0; i--) {
-				printf("  pop %s\n", argreg[i]);
+				// TODO:intとcharに対応すること
+				printf("  pop %s\n", argreg8[i]);
 			}
 			// 仕様上rspが16の倍数で関数をcallしなくてはならない
 			printf("  mov rax, rsp\n");
@@ -162,7 +202,7 @@ static void gen(Node *node) {
 		return;
 	case ND_DEREF:
 		gen(node->lhs);
-		if (node->type->ty != TP_ARRAY) load();
+		if (node->type->ty != TP_ARRAY) load(node->type);
 		return;
 	case ND_NULL:
 		return;
@@ -254,11 +294,16 @@ static void gvar_gen() {
 	}
 }
 
+static int calc_align(int offset, int align) {
+	return (offset + align - 1) & ~(align - 1);
+}
+
 void func_gen(Function *func) {
 	if (func == NULL) {
 		gvar_gen();
 		return;
 	}
+	func->total_offset = calc_align(func->total_offset, 8);
 	printf(".text\n");
 	printf(".global %s\n", func->name);
 	printf("%s:\n", func->name);
@@ -271,11 +316,21 @@ void func_gen(Function *func) {
 
 	Total_offset = func->total_offset;
 	// このアドレスの並びであってるのかな-??
-	for (int i = 0; i < func->arg_count; i++) {
+	// for (int i = 0; i < func->arg_count; i++) {
+	// 	printf("  mov rax, rbp\n");
+	// 	printf("  sub rax, %d\n", Total_offset);
+	// 	printf("  add rax, %d\n", i * 8);
+	// 	printf("  mov [rax], %s\n", argreg[i]);
+	// }
+	fprintf(stderr, "arg\n");
+	int arg1_idx = 0, arg8_idx = 0;
+	for (Node *now = func->arg; now; now = now->next_arg) {
+		// TODO:
 		printf("  mov rax, rbp\n");
-		printf("  sub rax, %d\n", Total_offset);
-		printf("  add rax, %d\n", i * 8);
-		printf("  mov [rax], %s\n", argreg[i]);
+		printf("  sub rax, %d\n", Total_offset + 8);
+		printf("  add rax, %d\n", now->offset);
+		if (is_char(now->type)) printf("  mov [rax], %s\n", argreg1[arg1_idx++]);
+		else printf("  mov [rax], %s\n", argreg8[arg8_idx++]);
 	}
 
 	for (Node *now = func->stmt; now; now = now->next_stmt) {

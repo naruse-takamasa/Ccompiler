@@ -225,7 +225,8 @@ struct Function {
 };
 
 extern Var *gvar_list;
-
+extern Function *func_list;
+Function *find_func(char *name);
 void program(void);
 
 ////////////////////////////////////////////////////////////////////////////
@@ -242,4 +243,5 @@ Type *new_type(TypeKind typekind, Type *ptr_to, int sz);
 bool is_int(Type *type);
 bool is_ptr(Type *type);
 bool is_array(Type *type);
+bool is_char(Type *type);
 void type_analyzer(Node *node);
